@@ -14,6 +14,12 @@ import subprocess
 import casadi as ca
 import numpy as np
 import scipy.linalg
+from tqdm import tqdm
+from time import sleep
+
+import matplotlib.pyplot as plt
+from copy import deepcopy
+import pickle
 
 from draw import Draw_MPC_point_stabilization_v1
 
@@ -47,6 +53,13 @@ class GemCarOptimizer(object):
         # Car Info
         self.car_width = 1.5 # 55.5in = 1.4107m
         self.car_length = 2.7 # 103in = 2.6162m
+        self.Epi = 3000
+
+        self.target_x = 0.0
+        self.target_y = 50.0
+        self.target_theta = np.pi/2
+
+        self.plot_figures = True
 
         # Ensure current working directory is current folder
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -120,8 +133,9 @@ class GemCarOptimizer(object):
             ocp.constraints.lh = np.zeros((len(con_h_expr),))
             ocp.constraints.uh = 1000 * np.ones((len(con_h_expr),))
 
-         
+
             #slack variable configuration:
+
             nsh = len(con_h_expr)
             ocp.constraints.lsh = np.zeros(nsh)             # Lower bounds on slacks corresponding to soft lower bounds for nonlinear constraints
             ocp.constraints.ush = np.zeros(nsh)             # Lower bounds on slacks corresponding to soft upper bounds for nonlinear constraints
@@ -129,11 +143,10 @@ class GemCarOptimizer(object):
 
 
             ns = len(con_h_expr)
-            ocp.cost.zl = 10e5 * np.ones((ns,)) # gradient wrt lower slack at intermediate shooting nodes (1 to N-1)
+            ocp.cost.zl = 1000 * np.ones((ns,)) # gradient wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.Zl = 1 * np.ones((ns,))    # diagonal of Hessian wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.zu = 0 * np.ones((ns,))    
             ocp.cost.Zu = 1 * np.ones((ns,))  
-
                 
 
         # initial state
@@ -154,7 +167,18 @@ class GemCarOptimizer(object):
         self.solver = AcadosOcpSolver(ocp, json_file=json_file)
         self.integrator = AcadosSimSolver(ocp, json_file=json_file)
 
-    def simulation(self, x0, xs):
+
+    def solve(self, x_real, y_real, theta_real):
+
+        x0 = np.zeros(3)
+        x0[0] = x_real
+        x0[1] = y_real
+        x0[2] = theta_real
+
+        xs = np.zeros(3)
+        xs[0] = self.target_x
+        xs[1] = self.target_y
+        xs[2] = self.target_theta
 
         simX = np.zeros((self.N+1, self.nx))
         simU = np.zeros((self.N, self.nu))
@@ -192,23 +216,144 @@ class GemCarOptimizer(object):
             # update
             x_current = self.integrator.get('x')
             simX[i+1, :] = x_current
-        print(simU)
 
-        print("average estimation time is {}".format(time_record.mean()))
-        print("max estimation time is {}".format(time_record.max()))
-        print("min estimation time is {}".format(time_record.min()))
+        #Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0, target_state=xs, robot_states=simX, )
 
-        Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0, target_state=xs, robot_states=simX, )
+        # next state
+        next_x = simX[1, 0]
+        next_y = simX[1, 1]
+        next_theta = simX[1, 2]
 
+        return next_x, next_y, next_theta, simX, simU
+
+
+    # plot function for case 2 --unchanged
+    def plot_results(self, start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log):
+        
+        tt = np.arange(0, (len(U_log)), 1)*self.dt
+        t = np.arange(0, (len(theta_log)), 1)*self.dt
+        plt.plot(tt, U_log, 'r-', label='desired U')
+        plt.plot(tt, U_real_log, 'b-', label='U_real', linestyle='--')
+        plt.xlabel('time')
+        plt.ylabel('U')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+        # Plot for angles
+        plt.plot(t, theta_log, 'r-', label='desired theta')
+
+        # plt.plot(t, theta_real_log, 'b-', label='theta_real')
+        plt.xlabel('time')
+        plt.ylabel('theta')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+        ## Plot for circle obstacles and x-y positions
+        
+        plt.plot(x_log, y_log, 'r-', label='desired path')
+        plt.plot(x_real_log, y_real_log, 'b-', label='real path', linestyle='--')
+        plt.plot(self.target_x,self.target_y,'bo')
+        plt.plot(start_x, start_y, 'go')
+        plt.xlabel('pos_x')
+        plt.ylabel('pos_y')
+
+        target_circle1 = plt.Circle((self.circle_obstacles_1['x'], self.circle_obstacles_1['y']), self.circle_obstacles_1['r'], color='whitesmoke', fill=True)
+        target_circle2 = plt.Circle((self.circle_obstacles_2['x'], self.circle_obstacles_2['y']), self.circle_obstacles_2['r'], color='whitesmoke', fill=True)
+        target_circle3 = plt.Circle((self.circle_obstacles_3['x'], self.circle_obstacles_3['y']), self.circle_obstacles_3['r'], color='whitesmoke', fill=True)
+        target_circle4 = plt.Circle((self.circle_obstacles_1['x'], self.circle_obstacles_1['y']), self.circle_obstacles_1['r'], color='k', fill=False)
+        target_circle5 = plt.Circle((self.circle_obstacles_2['x'], self.circle_obstacles_2['y']), self.circle_obstacles_2['r'], color='k', fill=False)
+        target_circle6 = plt.Circle((self.circle_obstacles_3['x'], self.circle_obstacles_3['y']), self.circle_obstacles_3['r'], color='k', fill=False)
+        
+        plt.gcf().gca().add_artist(target_circle1)
+        plt.gcf().gca().add_artist(target_circle2)
+        plt.gcf().gca().add_artist(target_circle3)
+        plt.gcf().gca().add_artist(target_circle4)
+        plt.gcf().gca().add_artist(target_circle5)
+        plt.gcf().gca().add_artist(target_circle6)
+        # plt.axis([-5.0, 1.5, -2.4, 2.4])
+        plt.axis('equal')
+        # x = np.arange(start_x-1,4,0.01)
+        # plt.plot(x, len(x)*[self.upper_limit], 'g-', label='upper limit')
+        # plt.plot(x, len(x)*[self.lower_limit], 'b-', label='lower limit')
+        plt.legend()
+        plt.show()
+
+        with open('single_traj_mpc_50hz.pkl', 'wb') as f:
+            pickle.dump([x_log, y_log], f)
+
+
+    def main(self, x_init, y_init, theta_init):
+        
+        start_x, start_y = x_init, y_init                
+        x_0, y_0, theta = start_x, start_y, theta_init
+        x_real, y_real, theta_real = start_x, start_y, theta_init
+        theta_0 = theta_init            # Save the initial theta
+        U_real = np.array([0.0, 0.0])
+
+        x_log, y_log = [x_0], [y_0]
+        theta_log = [theta]
+        U_log = []
+
+        x_real_log, y_real_log = [x_real], [y_real]
+        theta_real_log = [theta_real]
+        U_real_log = []
+
+        with tqdm(total=100, desc='cpu%', position=1) as cpubar, tqdm(total=100, desc='ram%', position=0) as rambar:
+            for i in tqdm(range(self.Epi)):
+
+                try:
+
+                    x_0, y_0, theta, X, U = self.solve(x_real, y_real, theta_real)
+
+                    print(x_0, y_0, theta)
+                    #print('x',self.sim_x)
+                    #print('u',self.sim_u)
+                    x_real, y_real, theta_real = x_0, y_0, theta
+                    desire_ctrl = U.T[0]
+                    U_real = desire_ctrl
+                    
+                    x_log.append(x_0)
+                    y_log.append(y_0)
+                    theta_log.append(theta)
+                    U_log.append(desire_ctrl)
+
+                    x_real_log.append(x_real)
+                    y_real_log.append(y_real)
+                    theta_real_log.append(theta_real)
+                    U_real_log.append(U_real)
+
+                    if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 0.01:
+                        # break
+                        print("reach the target", theta_0)
+                        if self.plot_figures == True:
+                            self.plot_results(start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log)
+                        return [1, theta_log], x_log, y_log
+
+                except RuntimeError:
+                    print("Infesible", theta_0)
+                    if self.plot_figures == True:
+                        self.plot_results(start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log)
+                    return [0, theta_log], x_log, y_log
+
+            print("not reach the target", theta_0)
+            if self.plot_figures == True:
+                self.plot_results(start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log)
+            return [0, theta_log], x_log, y_log
+
+    
 if __name__ == '__main__':
 
     obstacles = np.array([
-    [2, 2, 1],        #x, y, r 20 25 30
-    #[-1, 25, 1],
-    #[1.0, 30, 1]
+    [0.0, 20, 1],        #x, y, r 20 25 30
+    [-1.0, 25, 1],
+    [1.0, 30, 1]
     ])
+
+    start_x, start_y, theta = 0.0, 0.0, np.pi/2.8
 
     car_model = GemCarModel()
     opt = GemCarOptimizer(m_model=car_model.model, 
                                m_constraint=car_model.constraint, t_horizon=2, dt=0.02, obstacles = obstacles)
-    opt.simulation(x0=np.array([0, 0, np.pi/6]), xs=np.array([5, 5, 0.]))
+    opt.main(start_x, start_y, theta)
