@@ -40,8 +40,8 @@ class GemCarModel(object):
         # constraint
         constraint.v_max = 1.5
         constraint.v_min = -1.5
-        constraint.omega_max = 3
-        constraint.omega_min = -3
+        constraint.omega_max = 1
+        constraint.omega_min = -1
         constraint.expr = ca.vcat([v, omega])
 
         self.model = model

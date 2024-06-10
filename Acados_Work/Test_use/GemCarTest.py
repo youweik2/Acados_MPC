@@ -114,7 +114,7 @@ class GemCarOptimizer(object):
 
             # add to the list
             con_h_expr.append(distance)
-
+        '''
         if con_h_expr:
             ocp.model.con_h_expr = ca.vertcat(*con_h_expr)
             ocp.constraints.lh = np.zeros((len(con_h_expr),))
@@ -133,7 +133,7 @@ class GemCarOptimizer(object):
             ocp.cost.Zl = 1 * np.ones((ns,))    # diagonal of Hessian wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.zu = 0 * np.ones((ns,))    
             ocp.cost.Zu = 1 * np.ones((ns,))  
-
+        '''
                 
 
         # initial state
@@ -192,7 +192,9 @@ class GemCarOptimizer(object):
             # update
             x_current = self.integrator.get('x')
             simX[i+1, :] = x_current
-        print(simU)
+            
+        print("x",simX)
+        print("u",simU)
 
         print("average estimation time is {}".format(time_record.mean()))
         print("max estimation time is {}".format(time_record.max()))
@@ -210,5 +212,5 @@ if __name__ == '__main__':
 
     car_model = GemCarModel()
     opt = GemCarOptimizer(m_model=car_model.model, 
-                               m_constraint=car_model.constraint, t_horizon=2, dt=0.02, obstacles = obstacles)
+                               m_constraint=car_model.constraint, t_horizon=2, dt=0.05, obstacles = obstacles)
     opt.simulation(x0=np.array([0, 0, np.pi/6]), xs=np.array([5, 5, 0.]))

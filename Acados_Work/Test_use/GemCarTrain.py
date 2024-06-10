@@ -21,8 +21,6 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 import pickle
 
-from draw import Draw_MPC_point_stabilization_v1
-
 def safe_mkdir_recursive(directory, overwrite=False):
     if not os.path.exists(directory):
         try:
@@ -55,9 +53,15 @@ class GemCarOptimizer(object):
         self.car_length = 2.7 # 103in = 2.6162m
         self.Epi = 3000
 
+        self.car_collision = 0 # consider car info or not **** Important param
+
         self.target_x = 0.0
-        self.target_y = 50.0
+        self.target_y = 40.0
         self.target_theta = np.pi/2
+
+        self.circle_obstacles_1 = {'x': 0, 'y': 20, 'r': 1.0}
+        self.circle_obstacles_2 = {'x': 1, 'y': 25, 'r': 1.0}
+        self.circle_obstacles_3 = {'x': -1, 'y': 30, 'r': 1.0}
 
         self.plot_figures = True
 
@@ -88,8 +92,8 @@ class GemCarOptimizer(object):
         ocp.parameter_values = np.zeros(n_params)
 
         # cost type
-        Q = np.array([[1.0, 0.0, 0.0], [0.0, 5.0, 0.0], [0.0, 0.0, .1]])
-        R = np.array([[0.5, 0.0], [0.0, 0.05]])
+        Q = np.array([[1.0, 0.0, 0.0], [0.0, 5.0, 0.0], [0.0, 0.0, 0.01]]) # 1 5 0.001
+        R = np.array([[0.5, 0.0], [0.0, 0.05]]) # 0.5 0.05
         ocp.cost.cost_type = 'LINEAR_LS'
         ocp.cost.cost_type_e = 'LINEAR_LS'
         ocp.cost.W = scipy.linalg.block_diag(Q, R)
@@ -117,17 +121,49 @@ class GemCarOptimizer(object):
         obs = obstacles
 
         con_h_expr = []  # list to collect constraints
+
         
-        for i in range(obs_num):
-            obs_x, obs_y = obs[i, 0], obs[i, 1]
-            obs_radius = obs[i, 2]
+        if self.car_collision == 1:
+            # crash car -model
+            xlu = self.car_length*np.cos(theta)/2 - self.car_width*np.sin(theta)/2 + x
+            xll = -self.car_length*np.cos(theta)/2 - self.car_width*np.sin(theta)/2 + x
+            xru = self.car_length*np.cos(theta)/2 + self.car_width*np.sin(theta)/2 + x
+            xrl = -self.car_length*np.cos(theta)/2 + self.car_width*np.sin(theta)/2 + x
 
-            # nonlinear cons
-            distance = ((x - obs_x)**2 + (y - obs_y)**2) - ((obs_radius)**2)
+            ylu = self.car_length*np.sin(theta)/2 + self.car_width*np.cos(theta)/2 + y
+            yll = -self.car_length*np.sin(theta)/2 + self.car_width*np.cos(theta)/2 + y
+            yru = self.car_length*np.cos(theta)/2 - self.car_width*np.cos(theta)/2 + y
+            yrl = -self.car_length*np.cos(theta)/2 - self.car_width*np.cos(theta)/2 + y
+            
+            for i in range(obs_num):
 
-            # add to the list
-            con_h_expr.append(distance)
+                obs_x, obs_y = obs[i, 0], obs[i, 1]
+                obs_radius = obs[i, 2]
 
+                # nonlinear cons
+                dis_lu = ((xlu - obs_x)**2 + (ylu - obs_y)**2) - ((obs_radius)**2)
+                dis_ll = ((xll - obs_x)**2 + (yll - obs_y)**2) - ((obs_radius)**2)
+                dis_ru = ((xru - obs_x)**2 + (yru - obs_y)**2) - ((obs_radius)**2)
+                dis_rl = ((xrl - obs_x)**2 + (yrl - obs_y)**2) - ((obs_radius)**2)
+
+                # add to the list
+                con_h_expr.append(dis_lu)
+                con_h_expr.append(dis_ll)
+                con_h_expr.append(dis_ru)
+                con_h_expr.append(dis_rl)
+        else:
+
+            for i in range(obs_num):
+                obs_x, obs_y = obs[i, 0], obs[i, 1]
+                obs_radius = obs[i, 2]
+
+                # nonlinear cons
+                distance = ((x - obs_x)**2 + (y - obs_y)**2) - ((obs_radius)**2)
+
+                # add to the list
+                con_h_expr.append(distance)
+        
+        
         if con_h_expr:
             ocp.model.con_h_expr = ca.vertcat(*con_h_expr)
             ocp.constraints.lh = np.zeros((len(con_h_expr),))
@@ -147,7 +183,7 @@ class GemCarOptimizer(object):
             ocp.cost.Zl = 1 * np.ones((ns,))    # diagonal of Hessian wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.zu = 0 * np.ones((ns,))    
             ocp.cost.Zu = 1 * np.ones((ns,))  
-                
+        
 
         # initial state
         ocp.constraints.x0 = x_ref
@@ -183,28 +219,38 @@ class GemCarOptimizer(object):
         simX = np.zeros((self.N+1, self.nx))
         simU = np.zeros((self.N, self.nu))
         x_current = x0
-        simX[0, :] = x0.reshape(1, -1)
-        xs_between = np.concatenate((xs, np.zeros(2)))
+        simX[0, :] = x0.reshape(1, -1)  
+
+        u_cur = np.zeros(2)
+        u_cur[0] = 1.5
+        u_cur[1] = 0
+
+        for i in range(self.N):
+            x_cur = np.zeros(3)
+            for j in range(3):
+                x_cur[j] = x0[j] + (xs[j] - x0[j]) * (i+1) /50
+                xs_between = np.concatenate((x_cur, u_cur))
+                self.solver.set(i, 'yref', xs_between)
         time_record = np.zeros(self.N)
 
         # closed loop
         self.solver.set(self.N, 'yref', xs)
+            
         for i in range(self.N):
-            self.solver.set(i, 'yref', xs_between)
 
-        for i in range(self.N):
             # solve ocp
-            start = timeit.default_timer()
             ##  set inertial (stage 0)
+
             self.solver.set(0, 'lbx', x_current)
             self.solver.set(0, 'ubx', x_current)
+            
             status = self.solver.solve()
 
             if status != 0 :
                 raise Exception('acados acados_ocp_solver returned status {}. Exiting.'.format(status))
-
+            
             simU[i, :] = self.solver.get(0, 'u')
-            time_record[i] =  timeit.default_timer() - start
+
             # simulate system
             self.integrator.set('x', x_current)
             self.integrator.set('u', simU[i, :])
@@ -230,6 +276,7 @@ class GemCarOptimizer(object):
     # plot function for case 2 --unchanged
     def plot_results(self, start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log):
         
+        plt.figure()
         tt = np.arange(0, (len(U_log)), 1)*self.dt
         t = np.arange(0, (len(theta_log)), 1)*self.dt
         plt.plot(tt, U_log, 'r-', label='desired U')
@@ -304,12 +351,9 @@ class GemCarOptimizer(object):
             for i in tqdm(range(self.Epi)):
 
                 try:
-
                     x_0, y_0, theta, X, U = self.solve(x_real, y_real, theta_real)
+                    print("u", U)
 
-                    print(x_0, y_0, theta)
-                    #print('x',self.sim_x)
-                    #print('u',self.sim_u)
                     x_real, y_real, theta_real = x_0, y_0, theta
                     desire_ctrl = U.T[0]
                     U_real = desire_ctrl
@@ -324,7 +368,7 @@ class GemCarOptimizer(object):
                     theta_real_log.append(theta_real)
                     U_real_log.append(U_real)
 
-                    if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 0.01:
+                    if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 0.1:
                         # break
                         print("reach the target", theta_0)
                         if self.plot_figures == True:
@@ -351,9 +395,9 @@ if __name__ == '__main__':
     [1.0, 30, 1]
     ])
 
-    start_x, start_y, theta = 0.0, 0.0, np.pi/2.8
+    start_x, start_y, theta = -4.0, 0.0, np.pi/2
 
     car_model = GemCarModel()
     opt = GemCarOptimizer(m_model=car_model.model, 
-                               m_constraint=car_model.constraint, t_horizon=2, dt=0.02, obstacles = obstacles)
+                               m_constraint=car_model.constraint, t_horizon=1, dt=0.05, obstacles = obstacles)
     opt.main(start_x, start_y, theta)

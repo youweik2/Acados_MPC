@@ -389,7 +389,7 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
         GemCarModel_acados_update_time_steps(capsule, N, new_time_steps);
     }
     else
-    {double time_step = 0.02;
+    {double time_step = 0.05;
         for (int i = 0; i < N; i++)
         {
             ocp_nlp_in_set(nlp_config, nlp_dims, nlp_in, i, "Ts", &time_step);
@@ -414,7 +414,7 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     // change only the non-zero elements:
     W_0[0+(NY0) * 0] = 1;
     W_0[1+(NY0) * 1] = 5;
-    W_0[2+(NY0) * 2] = 0.1;
+    W_0[2+(NY0) * 2] = 0.01;
     W_0[3+(NY0) * 3] = 0.5;
     W_0[4+(NY0) * 4] = 0.05;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, 0, "W", W_0);
@@ -444,7 +444,7 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     // change only the non-zero elements:
     W[0+(NY) * 0] = 1;
     W[1+(NY) * 1] = 5;
-    W[2+(NY) * 2] = 0.1;
+    W[2+(NY) * 2] = 0.01;
     W[3+(NY) * 3] = 0.5;
     W[4+(NY) * 4] = 0.05;
 
@@ -485,7 +485,7 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     // change only the non-zero elements:
     W_e[0+(NYN) * 0] = 1;
     W_e[1+(NYN) * 1] = 5;
-    W_e[2+(NYN) * 2] = 0.1;
+    W_e[2+(NYN) * 2] = 0.01;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, N, "W", W_e);
     free(W_e);
     double* Vx_e = calloc(NYN*NX, sizeof(double));
@@ -512,9 +512,9 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     Zu[0] = 1;
     Zu[1] = 1;
     Zu[2] = 1;
-    zl[0] = 1000000;
-    zl[1] = 1000000;
-    zl[2] = 1000000;
+    zl[0] = 1000;
+    zl[1] = 1000;
+    zl[2] = 1000;
 
     for (int i = 1; i < N; i++)
     {
@@ -574,8 +574,8 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     
     lbu[0] = -1.5;
     ubu[0] = 1.5;
-    lbu[1] = -3;
-    ubu[1] = 3;
+    lbu[1] = -1;
+    ubu[1] = 1;
 
     for (int i = 0; i < N; i++)
     {
@@ -716,7 +716,7 @@ int fixed_hess = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "levenberg_marquardt", &levenberg_marquardt);
 
     /* options QP solver */
-    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 100;
+    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 20;
     qp_solver_cond_N = N < qp_solver_cond_N_ori ? N : qp_solver_cond_N_ori; // use the minimum value here
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_cond_N", &qp_solver_cond_N);
 
