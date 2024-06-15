@@ -124,6 +124,7 @@ class GemCarOptimizer(object):
 
         
         if self.car_collision == 1:
+
             # crash car -model
             xlu = self.car_length*np.cos(theta)/2 - self.car_width*np.sin(theta)/2 + x
             xll = -self.car_length*np.cos(theta)/2 - self.car_width*np.sin(theta)/2 + x
@@ -203,7 +204,6 @@ class GemCarOptimizer(object):
         self.solver = AcadosOcpSolver(ocp, json_file=json_file)
         self.integrator = AcadosSimSolver(ocp, json_file=json_file)
 
-
     def solve(self, x_real, y_real, theta_real):
 
         x0 = np.zeros(3)
@@ -221,49 +221,26 @@ class GemCarOptimizer(object):
         x_current = x0
         simX[0, :] = x0.reshape(1, -1)  
 
-        u_cur = np.zeros(2)
-        u_cur[0] = 1.5
-        u_cur[1] = 0
-
         for i in range(self.N):
-            x_cur = np.zeros(3)
-            for j in range(3):
-                x_cur[j] = x0[j] + (xs[j] - x0[j]) * (i+1) /50
-                xs_between = np.concatenate((x_cur, u_cur))
-                self.solver.set(i, 'yref', xs_between)
-        time_record = np.zeros(self.N)
-
-        # closed loop
+            xs_between = np.concatenate((xs, np.zeros(self.nu)))
+            self.solver.set(i, 'yref', xs_between)
         self.solver.set(self.N, 'yref', xs)
-            
+
+        # Start Solving
+
+        self.solver.set(0, 'lbx', x_current)
+        self.solver.set(0, 'ubx', x_current)     
+        status = self.solver.solve()
+
+        if status != 0 :
+            raise Exception('acados acados_ocp_solver returned status {}. Exiting.'.format(status))
+        
+        simX[0, :] = self.solver.get(0, 'x')
+
         for i in range(self.N):
-
             # solve ocp
-            ##  set inertial (stage 0)
-
-            self.solver.set(0, 'lbx', x_current)
-            self.solver.set(0, 'ubx', x_current)
-            
-            status = self.solver.solve()
-
-            if status != 0 :
-                raise Exception('acados acados_ocp_solver returned status {}. Exiting.'.format(status))
-            
-            simU[i, :] = self.solver.get(0, 'u')
-
-            # simulate system
-            self.integrator.set('x', x_current)
-            self.integrator.set('u', simU[i, :])
-
-            status_s = self.integrator.solve()
-            if status_s != 0:
-                raise Exception('acados integrator returned status {}. Exiting.'.format(status))
-
-            # update
-            x_current = self.integrator.get('x')
-            simX[i+1, :] = x_current
-
-        #Draw_MPC_point_stabilization_v1(rob_diam=0.3, init_state=x0, target_state=xs, robot_states=simX, )
+            simU[i, :] = self.solver.get(i, 'u')
+            simX[i+1, :] = self.solver.get(i+1, 'x')
 
         # next state
         next_x = simX[1, 0]
@@ -352,7 +329,6 @@ class GemCarOptimizer(object):
 
                 try:
                     x_0, y_0, theta, X, U = self.solve(x_real, y_real, theta_real)
-                    print("u", U)
 
                     x_real, y_real, theta_real = x_0, y_0, theta
                     desire_ctrl = U.T[0]
@@ -395,7 +371,7 @@ if __name__ == '__main__':
     [1.0, 30, 1]
     ])
 
-    start_x, start_y, theta = -4.0, 0.0, np.pi/2
+    start_x, start_y, theta = -0.0, 0.0, np.pi/2
 
     car_model = GemCarModel()
     opt = GemCarOptimizer(m_model=car_model.model, 
