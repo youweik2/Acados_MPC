@@ -40,7 +40,7 @@
 #define GEMCARMODEL_NZ     0
 #define GEMCARMODEL_NU     2
 #define GEMCARMODEL_NP     0
-#define GEMCARMODEL_NBX    0
+#define GEMCARMODEL_NBX    3
 #define GEMCARMODEL_NBX0   3
 #define GEMCARMODEL_NBU    2
 #define GEMCARMODEL_NSBX   0
@@ -63,7 +63,7 @@
 #define GEMCARMODEL_NY0    5
 #define GEMCARMODEL_NY     5
 #define GEMCARMODEL_NYN    3
-#define GEMCARMODEL_N      20
+#define GEMCARMODEL_N      50
 #define GEMCARMODEL_NH     3
 #define GEMCARMODEL_NHN    0
 #define GEMCARMODEL_NH0    0

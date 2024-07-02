@@ -389,7 +389,7 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
         GemCarModel_acados_update_time_steps(capsule, N, new_time_steps);
     }
     else
-    {double time_step = 0.05;
+    {double time_step = 0.02;
         for (int i = 0; i < N; i++)
         {
             ocp_nlp_in_set(nlp_config, nlp_dims, nlp_in, i, "Ts", &time_step);
@@ -612,6 +612,31 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
 
 
 
+    // x
+    int* idxbx = malloc(NBX * sizeof(int));
+    
+    idxbx[0] = 0;
+    idxbx[1] = 1;
+    idxbx[2] = 2;
+    double* lubx = calloc(2*NBX, sizeof(double));
+    double* lbx = lubx;
+    double* ubx = lubx + NBX;
+    
+    lbx[0] = -5;
+    ubx[0] = 5;
+    lbx[1] = -100;
+    ubx[1] = 100;
+    lbx[2] = -6.283185307179586;
+    ubx[2] = 6.283185307179586;
+
+    for (int i = 1; i < N; i++)
+    {
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "idxbx", idxbx);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lbx", lbx);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "ubx", ubx);
+    }
+    free(idxbx);
+    free(lubx);
 
 
 
@@ -716,7 +741,7 @@ int fixed_hess = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "levenberg_marquardt", &levenberg_marquardt);
 
     /* options QP solver */
-    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 20;
+    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 50;
     qp_solver_cond_N = N < qp_solver_cond_N_ori ? N : qp_solver_cond_N_ori; // use the minimum value here
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_cond_N", &qp_solver_cond_N);
 

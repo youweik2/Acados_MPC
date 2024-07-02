@@ -74,7 +74,7 @@ int GemCarModel_acados_sim_create(GemCarModel_sim_solver_capsule * capsule)
     bool tmp_bool;
 
     
-    double Tsim = 0.05;
+    double Tsim = 0.02;
 
     
     // explicit ode
