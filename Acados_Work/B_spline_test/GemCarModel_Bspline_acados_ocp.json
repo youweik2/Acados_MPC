@@ -1,7 +1,7 @@
 {
-    "acados_include_path": "/home/ywke/Work/acados/include",
-    "acados_lib_path": "/home/ywke/Work/acados/lib",
-    "code_export_directory": "/home/ywke/Work/24Summer/Acados_Work/B_spline_test/c_generated_code",
+    "acados_include_path": "/home/auto2204/acados/include",
+    "acados_lib_path": "/home/auto2204/acados/lib",
+    "code_export_directory": "/home/auto2204/24summer_work/Acados_Work/B_spline_test/c_generated_code",
     "constraints": {
         "C": [],
         "C_e": [],
@@ -10,10 +10,7 @@
         "constr_type_0": "BGH",
         "constr_type_e": "BGH",
         "has_x0": true,
-        "idxbu": [
-            0,
-            1
-        ],
+        "idxbu": [],
         "idxbx": [],
         "idxbx_0": [
             0,
@@ -57,10 +54,7 @@
         "idxsphi": [],
         "idxsphi_0": [],
         "idxsphi_e": [],
-        "lbu": [
-            -1.5,
-            -3.0
-        ],
+        "lbu": [],
         "lbx": [],
         "lbx_0": [
             0.0,
@@ -127,10 +121,7 @@
         "lsphi": [],
         "lsphi_0": [],
         "lsphi_e": [],
-        "ubu": [
-            1.5,
-            3.0
-        ],
+        "ubu": [],
         "ubx": [],
         "ubx_0": [
             0.0,
@@ -340,12 +331,12 @@
         "zu_e": []
     },
     "cython_include_dirs": [
-        "/home/ywke/anaconda3/envs/tf-gpu/lib/python3.9/site-packages/numpy/core/include",
-        "/home/ywke/anaconda3/envs/tf-gpu/include/python3.9"
+        "/usr/lib/python3/dist-packages/numpy/core/include",
+        "/usr/include/python3.10"
     ],
     "dims": {
         "N": 20,
-        "nbu": 2,
+        "nbu": 0,
         "nbx": 0,
         "nbx_0": 3,
         "nbx_e": 0,
