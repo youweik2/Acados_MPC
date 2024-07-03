@@ -60,10 +60,8 @@ def coefficients(tau_i, tau_i1):
     gm24 = gm42
     gm34 = gm43
     gm44 = tau_i1/7 - tau_i/7
-    
-    diag_gm = np.diag([gm11, gm21, gm31, gm41, gm12, gm22, gm32, gm42, gm13, gm23, gm33, gm43, gm14, gm24, gm34, gm44])
 
-    return diag_gm
+    return [gm11, gm21, gm31, gm41, gm12, gm22, gm32, gm42, gm13, gm23, gm33, gm43, gm14, gm24, gm34, gm44]
 
 def cost_function_ctrlpoints(cp, tau_i, tau_i1):
 
@@ -71,7 +69,7 @@ def cost_function_ctrlpoints(cp, tau_i, tau_i1):
     cost = 0
     for i in range(4):
         for j in range(4):
-            cost +=  gm[i*4+j] * (cp[j] @ cp[i].T)
+            cost +=  gm[i*4+j] * cp[j] @ cp[i].T
 
     return cost
 
@@ -147,15 +145,16 @@ class GemCarOptimizer(object):
         ocp.cost.cost_type = 'EXTERNAL'
         ocp.cost.cost_type_e = 'EXTERNAL'
 
-        ocp.model.cost_expr_ext_cost = ca.sumsqr(ocp.model.x.T @ Q @ ocp.model.x) + ca.sumsqr(cost_function_ctrlpoints(cp, 0, 1))
-        ocp.model.cost_expr_ext_cost_e = ca.sumsqr(ocp.model.x.T @ Q @ ocp.model.x)
+        ocp.model.cost_expr_ext_cost = ocp.model.x.T @ Q @ ocp.model.x + cost_function_ctrlpoints(cp, 0, 1)
+        ocp.model.cost_expr_ext_cost_e = ocp.model.x.T @ Q @ ocp.model.x
 
+        '''
         ocp.cost.Vx = np.zeros((ny, nx))
         ocp.cost.Vx[:nx, :nx] = np.eye(nx)
         ocp.cost.Vu = np.zeros((ny, nu))
         ocp.cost.Vu[-nu:, -nu:] = np.eye(nu)
         ocp.cost.Vx_e = np.eye(nx)
-
+        '''
 
         # set constraints
 
@@ -232,11 +231,12 @@ class GemCarOptimizer(object):
         ocp.cost.yref_e = x_ref
 
         # solver options
-        ocp.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM'
-        ocp.solver_options.hessian_approx = 'EXACT' # 'GAUSS_NEWTON'
-        ocp.solver_options.integrator_type = 'ERK'
+        ocp.solver_options.qp_solver = 'FULL_CONDENSING_QPOASES' # 'PARTIAL_CONDENSING_HPIPM'
+        ocp.solver_options.hessian_approx = 'GAUSS_NEWTON' # 'EXACT'
         ocp.solver_options.print_level = 0
-        ocp.solver_options.nlp_solver_type = 'SQP_RTI'
+        ocp.solver_options.nlp_solver_tol_eq = 1e-4
+        ocp.solver_options.nlp_solver_tol_ineq = 1e-4
+        ocp.solver_options.nlp_solver_type = 'SQP' #_RTI'
 
         # compile acados ocp
         json_file = os.path.join('./'+model.name+'_acados_ocp.json')

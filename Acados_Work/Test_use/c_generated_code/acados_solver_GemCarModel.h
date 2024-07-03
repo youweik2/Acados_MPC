@@ -63,7 +63,7 @@
 #define GEMCARMODEL_NY0    5
 #define GEMCARMODEL_NY     5
 #define GEMCARMODEL_NYN    3
-#define GEMCARMODEL_N      50
+#define GEMCARMODEL_N      16
 #define GEMCARMODEL_NH     3
 #define GEMCARMODEL_NHN    0
 #define GEMCARMODEL_NH0    0
@@ -104,9 +104,21 @@ typedef struct GemCarModel_solver_capsule
 
     // cost
 
+    external_function_param_casadi *cost_y_fun;
+    external_function_param_casadi *cost_y_fun_jac_ut_xt;
+    external_function_param_casadi *cost_y_hess;
 
 
 
+    external_function_param_casadi cost_y_0_fun;
+    external_function_param_casadi cost_y_0_fun_jac_ut_xt;
+    external_function_param_casadi cost_y_0_hess;
+
+
+
+    external_function_param_casadi cost_y_e_fun;
+    external_function_param_casadi cost_y_e_fun_jac_ut_xt;
+    external_function_param_casadi cost_y_e_hess;
 
 
     // constraints

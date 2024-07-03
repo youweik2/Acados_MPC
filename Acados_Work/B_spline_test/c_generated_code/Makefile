@@ -39,14 +39,12 @@ MODEL_SRC=
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_expl_ode_fun.c
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_expl_vde_forw.c
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_expl_vde_adj.c
-MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_expl_ode_hess.c
 MODEL_OBJ := $(MODEL_SRC:.c=.o)
 
 # optimal control problem - mostly CasADi exports
 OCP_SRC=
 OCP_SRC+= GemCarModel_Bspline_constraints/GemCarModel_Bspline_constr_h_fun_jac_uxt_zt.c
 OCP_SRC+= GemCarModel_Bspline_constraints/GemCarModel_Bspline_constr_h_fun.c
-OCP_SRC+= GemCarModel_Bspline_constraints/GemCarModel_Bspline_constr_h_fun_jac_uxt_zt_hess.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun_jac.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun_jac_hess.c
@@ -93,10 +91,12 @@ INCLUDE_PATH = /home/ywke/Work/acados/include
 LIB_PATH = /home/ywke/Work/acados/lib
 
 # preprocessor flags for make's implicit rules
+CPPFLAGS += -DACADOS_WITH_QPOASES
 CPPFLAGS+= -I$(INCLUDE_PATH)
 CPPFLAGS+= -I$(INCLUDE_PATH)/acados
 CPPFLAGS+= -I$(INCLUDE_PATH)/blasfeo/include
 CPPFLAGS+= -I$(INCLUDE_PATH)/hpipm/include
+CPPFLAGS+= -I $(INCLUDE_PATH)/qpOASES_e/
 
 
 # define the c-compiler flags for make's implicit rules
@@ -114,7 +114,7 @@ LDLIBS+= -lacados
 LDLIBS+= -lhpipm
 LDLIBS+= -lblasfeo
 LDLIBS+= -lm
-LDLIBS+= 
+LDLIBS+= -lqpOASES_e
 
 # libraries
 LIBACADOS_SOLVER=libacados_solver_GemCarModel_Bspline.so

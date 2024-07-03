@@ -45,6 +45,15 @@ MODEL_OBJ := $(MODEL_SRC:.c=.o)
 OCP_SRC=
 OCP_SRC+= GemCarModel_constraints/GemCarModel_constr_h_fun_jac_uxt_zt.c
 OCP_SRC+= GemCarModel_constraints/GemCarModel_constr_h_fun.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_0_fun.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_0_fun_jac_ut_xt.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_0_hess.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_fun.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_fun_jac_ut_xt.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_hess.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_e_fun.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_e_fun_jac_ut_xt.c
+OCP_SRC+= GemCarModel_cost/GemCarModel_cost_y_e_hess.c
 
 OCP_SRC+= acados_solver_GemCarModel.c
 OCP_OBJ := $(OCP_SRC:.c=.o)

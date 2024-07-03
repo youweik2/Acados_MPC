@@ -94,11 +94,13 @@ class GemCarOptimizer(object):
         Q = np.array([[1.0, 0.0, 0.0], [0.0, 5.0, 0.0], [0.0, 0.0, 0.01]])
         R = np.array([[0.5, 0.0], [0.0, 0.05]])
 
-        ocp.cost.cost_type = 'LINEAR_LS'
-        ocp.cost.cost_type_e = 'LINEAR_LS'
+        ocp.cost.cost_type = 'NONLINEAR_LS'
+        ocp.cost.cost_type_e = 'NONLINEAR_LS'
 
         ocp.cost.W = scipy.linalg.block_diag(Q, R)
         ocp.cost.W_e = Q
+        ocp.model.cost_y_expr = ca.vertcat(model.x, model.u)
+        ocp.model.cost_y_expr_e = model.x
 
         ocp.cost.Vx = np.zeros((ny, nx))
         ocp.cost.Vx[:nx, :nx] = np.eye(nx)
@@ -110,8 +112,8 @@ class GemCarOptimizer(object):
         ocp.constraints.lbu = np.array([m_constraint.v_min, m_constraint.omega_min])
         ocp.constraints.ubu = np.array([m_constraint.v_max, m_constraint.omega_max])
         ocp.constraints.idxbu = np.array([0, 1])
-        ocp.constraints.lbx = np.array([-5, -100, -2 * np.pi])
-        ocp.constraints.ubx = np.array([5, 100, 2 * np.pi])
+        ocp.constraints.lbx = np.array([-3.5, -100, -2 * np.pi])
+        ocp.constraints.ubx = np.array([3.5, 100, 2 * np.pi])
         ocp.constraints.idxbx = np.array([0, 1, 2])
 
         x_ref = np.zeros(nx)
@@ -185,7 +187,6 @@ class GemCarOptimizer(object):
 
         # initial state
         ocp.constraints.x0 = x_ref
-        ocp.cost.yref_0 = np.concatenate((x_ref, u_ref))
         ocp.cost.yref = np.concatenate((x_ref, u_ref))
         ocp.cost.yref_e = x_ref
 
@@ -372,5 +373,5 @@ if __name__ == '__main__':
 
     car_model = GemCarModel()
     opt = GemCarOptimizer(m_model=car_model.model, 
-                               m_constraint=car_model.constraint, t_horizon=1, dt=0.02, obstacles = obstacles)
+                               m_constraint=car_model.constraint, t_horizon=0.8, dt=0.05, obstacles = obstacles)
     opt.main(start_x, start_y, theta)

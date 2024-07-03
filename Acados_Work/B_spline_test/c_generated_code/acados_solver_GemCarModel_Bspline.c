@@ -147,9 +147,9 @@ void GemCarModel_Bspline_acados_create_1_set_plan(ocp_nlp_plan_t* nlp_solver_pla
     *  plan
     ************************************************/
 
-    nlp_solver_plan->nlp_solver = SQP_RTI;
+    nlp_solver_plan->nlp_solver = SQP;
 
-    nlp_solver_plan->ocp_qp_solver_plan.qp_solver = PARTIAL_CONDENSING_HPIPM;
+    nlp_solver_plan->ocp_qp_solver_plan.qp_solver = FULL_CONDENSING_QPOASES;
 
     nlp_solver_plan->nlp_cost[0] = EXTERNAL;
     for (int i = 1; i < N; i++)
@@ -333,11 +333,6 @@ void GemCarModel_Bspline_acados_create_3_create_and_set_functions(GemCarModel_Bs
         MAP_CASADI_FNC(nl_constr_h_fun[i], GemCarModel_Bspline_constr_h_fun);
     }
     
-    capsule->nl_constr_h_fun_jac_hess = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
-    for (int i = 0; i < N-1; i++) {
-        MAP_CASADI_FNC(nl_constr_h_fun_jac_hess[i], GemCarModel_Bspline_constr_h_fun_jac_uxt_zt_hess);
-    }
-    
 
 
 
@@ -350,10 +345,6 @@ void GemCarModel_Bspline_acados_create_3_create_and_set_functions(GemCarModel_Bs
     capsule->expl_ode_fun = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*N);
     for (int i = 0; i < N; i++) {
         MAP_CASADI_FNC(expl_ode_fun[i], GemCarModel_Bspline_expl_ode_fun);
-    }
-    capsule->hess_vde_casadi = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*N);
-    for (int i = 0; i < N; i++) {
-        MAP_CASADI_FNC(hess_vde_casadi[i], GemCarModel_Bspline_expl_ode_hess);
     }
 
 
@@ -458,7 +449,6 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
     {
         ocp_nlp_dynamics_model_set(nlp_config, nlp_dims, nlp_in, i, "expl_vde_forw", &capsule->forw_vde_casadi[i]);
         ocp_nlp_dynamics_model_set(nlp_config, nlp_dims, nlp_in, i, "expl_ode_fun", &capsule->expl_ode_fun[i]);
-        ocp_nlp_dynamics_model_set(nlp_config, nlp_dims, nlp_in, i, "expl_ode_hess", &capsule->hess_vde_casadi[i]);
     }
 
     /**** Cost ****/
@@ -699,9 +689,6 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
         ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun",
                                       &capsule->nl_constr_h_fun[i-1]);
         
-        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i,
-                                      "nl_constr_h_fun_jac_hess", &capsule->nl_constr_h_fun_jac_hess[i-1]);
-        
         ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lh", lh);
         ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "uh", uh);
     }
@@ -739,18 +726,7 @@ void GemCarModel_Bspline_acados_create_6_set_opts(GemCarModel_Bspline_solver_cap
     *  opts
     ************************************************/
 
-
-    int nlp_solver_exact_hessian = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "exact_hess", &nlp_solver_exact_hessian);
-
-    int exact_hess_dyn = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "exact_hess_dyn", &exact_hess_dyn);
-
-    int exact_hess_cost = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "exact_hess_cost", &exact_hess_cost);
-
-    int exact_hess_constr = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "exact_hess_constr", &exact_hess_constr);int fixed_hess = 0;
+int fixed_hess = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "fixed_hess", &fixed_hess);
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "globalization", "fixed_step");int with_solution_sens_wrt_params = false;
     ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "with_solution_sens_wrt_params", &with_solution_sens_wrt_params);
@@ -794,24 +770,31 @@ void GemCarModel_Bspline_acados_create_6_set_opts(GemCarModel_Bspline_solver_cap
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "levenberg_marquardt", &levenberg_marquardt);
 
     /* options QP solver */
-    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 20;
-    qp_solver_cond_N = N < qp_solver_cond_N_ori ? N : qp_solver_cond_N_ori; // use the minimum value here
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_cond_N", &qp_solver_cond_N);
 
     int nlp_solver_ext_qp_res = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "ext_qp_res", &nlp_solver_ext_qp_res);
-    // set HPIPM mode: should be done before setting other QP solver options
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_hpipm_mode", "BALANCE");
+    int log_primal_step_norm = false;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "log_primal_step_norm", &log_primal_step_norm);
 
 
-    int as_rti_iter = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "as_rti_iter", &as_rti_iter);
+    // set SQP specific options
+    double nlp_solver_tol_stat = 0.000001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_stat", &nlp_solver_tol_stat);
 
-    int as_rti_level = 4;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "as_rti_level", &as_rti_level);
+    double nlp_solver_tol_eq = 0.0001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_eq", &nlp_solver_tol_eq);
 
-    int rti_log_residuals = 0;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "rti_log_residuals", &rti_log_residuals);
+    double nlp_solver_tol_ineq = 0.0001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_ineq", &nlp_solver_tol_ineq);
+
+    double nlp_solver_tol_comp = 0.000001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_comp", &nlp_solver_tol_comp);
+
+    int nlp_solver_max_iter = 100;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "max_iter", &nlp_solver_max_iter);
+
+    int initialize_t_slacks = 0;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "initialize_t_slacks", &initialize_t_slacks);
 
     int qp_solver_iter_max = 50;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_iter_max", &qp_solver_iter_max);
@@ -820,12 +803,6 @@ void GemCarModel_Bspline_acados_create_6_set_opts(GemCarModel_Bspline_solver_cap
 
     int print_level = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "print_level", &print_level);
-    int qp_solver_cond_ric_alg = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_cond_ric_alg", &qp_solver_cond_ric_alg);
-
-    int qp_solver_ric_alg = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_ric_alg", &qp_solver_ric_alg);
-
 
     int ext_cost_num_hess = 0;
     for (int i = 0; i < N; i++)
@@ -950,22 +927,9 @@ int GemCarModel_Bspline_acados_create_with_discretization(GemCarModel_Bspline_so
  */
 int GemCarModel_Bspline_acados_update_qp_solver_cond_N(GemCarModel_Bspline_solver_capsule* capsule, int qp_solver_cond_N)
 {
-    // 1) destroy solver
-    ocp_nlp_solver_destroy(capsule->nlp_solver);
-
-    // 2) set new value for "qp_cond_N"
-    const int N = capsule->nlp_solver_plan->N;
-    if(qp_solver_cond_N > N)
-        printf("Warning: qp_solver_cond_N = %d > N = %d\n", qp_solver_cond_N, N);
-    ocp_nlp_solver_opts_set(capsule->nlp_config, capsule->nlp_opts, "qp_cond_N", &qp_solver_cond_N);
-
-    // 3) continue with the remaining steps from GemCarModel_Bspline_acados_create_with_discretization(...):
-    // -> 8) create solver
-    capsule->nlp_solver = ocp_nlp_solver_create(capsule->nlp_config, capsule->nlp_dims, capsule->nlp_opts);
-
-    // -> 9) do precomputations
-    int status = GemCarModel_Bspline_acados_create_9_precompute(capsule);
-    return status;
+    printf("\nacados_update_qp_solver_cond_N() not implemented, since no partial condensing solver is used!\n\n");
+    exit(1);
+    return -1;
 }
 
 
@@ -997,14 +961,6 @@ int GemCarModel_Bspline_acados_reset(GemCarModel_Bspline_solver_capsule* capsule
             ocp_nlp_out_set(nlp_config, nlp_dims, nlp_out, i, "pi", buffer);
         }
     }
-    // get qp_status: if NaN -> reset memory
-    int qp_status;
-    ocp_nlp_get(capsule->nlp_config, capsule->nlp_solver, "qp_status", &qp_status);
-    if (reset_qp_solver_mem || (qp_status == 3))
-    {
-        // printf("\nin reset qp_status %d -> resetting QP memory\n", qp_status);
-        ocp_nlp_solver_reset_qp_memory(nlp_solver, nlp_in, nlp_out);
-    }
 
     free(buffer);
     return 0;
@@ -1029,7 +985,6 @@ int GemCarModel_Bspline_acados_update_params(GemCarModel_Bspline_solver_capsule*
     {
         capsule->forw_vde_casadi[stage].set_param(capsule->forw_vde_casadi+stage, p);
         capsule->expl_ode_fun[stage].set_param(capsule->expl_ode_fun+stage, p);
-        capsule->hess_vde_casadi[stage].set_param(capsule->hess_vde_casadi+stage, p);
 
         // constraints
         if (stage == 0)
@@ -1039,7 +994,6 @@ int GemCarModel_Bspline_acados_update_params(GemCarModel_Bspline_solver_capsule*
         {
             capsule->nl_constr_h_fun_jac[stage-1].set_param(capsule->nl_constr_h_fun_jac+stage-1, p);
             capsule->nl_constr_h_fun[stage-1].set_param(capsule->nl_constr_h_fun+stage-1, p);
-            capsule->nl_constr_h_fun_jac_hess[stage-1].set_param(capsule->nl_constr_h_fun_jac_hess+stage-1, p);
         }
 
         // cost
@@ -1101,7 +1055,6 @@ int GemCarModel_Bspline_acados_update_params_sparse(GemCarModel_Bspline_solver_c
     {
         capsule->forw_vde_casadi[stage].set_param_sparse(capsule->forw_vde_casadi+stage, n_update, idx, p);
         capsule->expl_ode_fun[stage].set_param_sparse(capsule->expl_ode_fun+stage, n_update, idx, p);
-        capsule->hess_vde_casadi[stage].set_param_sparse(capsule->hess_vde_casadi+stage, n_update, idx, p);
 
         // constraints
         if (stage == 0)
@@ -1111,7 +1064,6 @@ int GemCarModel_Bspline_acados_update_params_sparse(GemCarModel_Bspline_solver_c
         {
             capsule->nl_constr_h_fun_jac[stage-1].set_param_sparse(capsule->nl_constr_h_fun_jac+stage-1, n_update, idx, p);
             capsule->nl_constr_h_fun[stage-1].set_param_sparse(capsule->nl_constr_h_fun+stage-1, n_update, idx, p);
-            capsule->nl_constr_h_fun_jac_hess[stage-1].set_param_sparse(capsule->nl_constr_h_fun_jac_hess+stage-1, n_update, idx, p);
         }
 
         // cost
@@ -1191,11 +1143,9 @@ int GemCarModel_Bspline_acados_free(GemCarModel_Bspline_solver_capsule* capsule)
     {
         external_function_param_casadi_free(&capsule->forw_vde_casadi[i]);
         external_function_param_casadi_free(&capsule->expl_ode_fun[i]);
-        external_function_param_casadi_free(&capsule->hess_vde_casadi[i]);
     }
     free(capsule->forw_vde_casadi);
     free(capsule->expl_ode_fun);
-    free(capsule->hess_vde_casadi);
 
     // cost
     external_function_param_casadi_free(&capsule->ext_cost_0_fun);
@@ -1225,11 +1175,9 @@ int GemCarModel_Bspline_acados_free(GemCarModel_Bspline_solver_capsule* capsule)
     {
         external_function_param_casadi_free(&capsule->nl_constr_h_fun_jac[i]);
         external_function_param_casadi_free(&capsule->nl_constr_h_fun[i]);
-        external_function_param_casadi_free(&capsule->nl_constr_h_fun_jac_hess[i]);
     }
     free(capsule->nl_constr_h_fun_jac);
     free(capsule->nl_constr_h_fun);
-    free(capsule->nl_constr_h_fun_jac_hess);
 
     return 0;
 }
@@ -1249,13 +1197,23 @@ void GemCarModel_Bspline_acados_print_stats(GemCarModel_Bspline_solver_capsule* 
     int nrow = nlp_iter+1 < stat_m ? nlp_iter+1 : stat_m;
 
 
-    printf("iter\tqp_stat\tqp_iter\n");
+    printf("iter\tres_stat\tres_eq\t\tres_ineq\tres_comp\tqp_stat\tqp_iter\talpha");
+    if (stat_n > 8)
+        printf("\t\tqp_res_stat\tqp_res_eq\tqp_res_ineq\tqp_res_comp");
+    printf("\n");
     for (int i = 0; i < nrow; i++)
     {
         for (int j = 0; j < stat_n + 1; j++)
         {
-            tmp_int = (int) stat[i + j * nrow];
-            printf("%d\t", tmp_int);
+            if (j == 0 || j == 5 || j == 6)
+            {
+                tmp_int = (int) stat[i + j * nrow];
+                printf("%d\t", tmp_int);
+            }
+            else
+            {
+                printf("%e\t", stat[i + j * nrow]);
+            }
         }
         printf("\n");
     }

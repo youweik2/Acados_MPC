@@ -28,7 +28,6 @@ extern "C" {
 #define casadi_s0 CASADI_PREFIX(s0)
 #define casadi_s1 CASADI_PREFIX(s1)
 #define casadi_s2 CASADI_PREFIX(s2)
-#define casadi_sq CASADI_PREFIX(sq)
 
 /* Symbol visibility in DLLs */
 #ifndef CASADI_SYMBOL_EXPORT
@@ -44,8 +43,6 @@ extern "C" {
     #define CASADI_SYMBOL_EXPORT
   #endif
 #endif
-
-casadi_real casadi_sq(casadi_real x) { return x*x;}
 
 static const casadi_int casadi_s0[7] = {3, 1, 0, 3, 0, 1, 2};
 static const casadi_int casadi_s1[3] = {0, 0, 0};
@@ -67,21 +64,13 @@ static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw,
   a8=(a6*a7);
   a9=(a8*a7);
   a3=(a3+a9);
-  a9=casadi_sq(a3);
-  if (res[0]!=0) res[0][0]=a9;
-  a3=(a3+a3);
-  a2=(a2*a3);
-  a1=(a1*a3);
+  if (res[0]!=0) res[0][0]=a3;
   a1=(a0*a1);
   a2=(a2+a1);
   if (res[1]!=0) res[1][0]=a2;
-  a5=(a5*a3);
-  a4=(a4*a3);
   a0=(a0*a4);
   a5=(a5+a0);
   if (res[1]!=0) res[1][1]=a5;
-  a8=(a8*a3);
-  a7=(a7*a3);
   a6=(a6*a7);
   a8=(a8+a6);
   if (res[1]!=0) res[1][2]=a8;
