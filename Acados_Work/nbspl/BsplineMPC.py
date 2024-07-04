@@ -142,11 +142,14 @@ class GemCarOptimizer(object):
         ctrl_point_4 = np.array([U[6], U[7]])
         cp = [ctrl_point_1, ctrl_point_2, ctrl_point_3, ctrl_point_4]
 
+        x_aim = np.array([self.target_x, self.target_y, self.target_theta])
+        x_gap = x_aim - ocp.model.x
+
+        ocp.model.cost_expr_ext_cost = x_gap.T @ Q @ x_gap + cost_function_ctrlpoints(cp, 0, 1)
+        ocp.model.cost_expr_ext_cost_e = ocp.model.x.T @ Q @ ocp.model.x
+        
         ocp.cost.cost_type = 'EXTERNAL'
         ocp.cost.cost_type_e = 'EXTERNAL'
-
-        ocp.model.cost_expr_ext_cost = ocp.model.x.T @ Q @ ocp.model.x + cost_function_ctrlpoints(cp, 0, 1)
-        ocp.model.cost_expr_ext_cost_e = ocp.model.x.T @ Q @ ocp.model.x
 
         '''
         ocp.cost.Vx = np.zeros((ny, nx))
@@ -162,7 +165,7 @@ class GemCarOptimizer(object):
         omega_limit = 3.0
         constraint_k = omega_limit/v_limit
 
-        
+        #ocp.constraints.constr_type = 'BGH'
         '''
         ocp.constraints.lbu = np.array([-v_limit, -omega_limit])
         ocp.constraints.ubu = np.array([v_limit, omega_limit])
@@ -175,8 +178,7 @@ class GemCarOptimizer(object):
         ctrl_constraint_leftlower = lambda ctrl_point: -constraint_k*ctrl_point - omega_limit
         ctrl_constraint_rightupper = lambda ctrl_point: -constraint_k*ctrl_point + omega_limit
 
-        x_ref = np.zeros(nx)
-        u_ref = np.zeros(nu)
+        x_ref = np.array([0, 0, np.pi/2])
 
         # obstacles
         x = ocp.model.x[0]  # x position
@@ -227,15 +229,18 @@ class GemCarOptimizer(object):
             ocp.cost.zu = 0 * np.ones((ns,))    
             ocp.cost.Zu = 1 * np.ones((ns,))  
         
-
+        
         # initial state
         ocp.constraints.x0 = x_ref
+        '''
         ocp.cost.yref = np.concatenate((x_ref, u_ref))
         ocp.cost.yref_e = x_ref
+        '''
 
         # solver options
         ocp.solver_options.qp_solver = 'FULL_CONDENSING_QPOASES' # 'PARTIAL_CONDENSING_HPIPM'
-        ocp.solver_options.hessian_approx = 'GAUSS_NEWTON' # 'EXACT'
+        #ocp.solver_options.hessian_approx = 'GAUSS_NEWTON' # 'EXACT'
+        ocp.solver_options.integrator_type = 'IRK'
         ocp.solver_options.print_level = 0
         ocp.solver_options.nlp_solver_tol_eq = 1e-4
         ocp.solver_options.nlp_solver_tol_ineq = 1e-4
@@ -264,21 +269,24 @@ class GemCarOptimizer(object):
         x_current = x0
         simX[0, :] = x0.reshape(1, -1)  
 
+        '''
         for i in range(self.N):
             xs_between = np.concatenate((xs, np.zeros(self.nu)))
             self.solver.set(i, 'yref', xs_between)
         self.solver.set(self.N, 'yref', xs)
-
+        '''
         # Start Solving
-
+        '''
         self.solver.set(0, 'lbx', x_current)
-        self.solver.set(0, 'ubx', x_current)     
+        self.solver.set(0, 'ubx', x_current)
+        '''
         status = self.solver.solve()
 
         if status != 0 :
             raise Exception('acados acados_ocp_solver returned status {}. Exiting.'.format(status))
         
         simX[0, :] = self.solver.get(0, 'x')
+        print('x',simX)
 
         for i in range(self.N):
             # solve ocp
