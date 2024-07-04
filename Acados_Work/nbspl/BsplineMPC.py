@@ -173,8 +173,6 @@ class GemCarOptimizer(object):
         ctrl_constraint_leftlower = lambda ctrl_point: -constraint_k*ctrl_point - omega_limit
         ctrl_constraint_rightupper = lambda ctrl_point: -constraint_k*ctrl_point + omega_limit
 
-        x_ref = np.array([0, 0, np.pi/2])
-
         # obstacles
         x = ocp.model.x[0]  # x position
         y = ocp.model.x[1]  # y position
@@ -184,6 +182,7 @@ class GemCarOptimizer(object):
 
         con_h_expr = []  # list to collect constraints
 
+        '''
         for i in range(4):
             con_lu = ctrl_constraint_leftupper(U[i*2]) - ctrl_constraint_leftupper(U[i*2+1])
             con_ru = ctrl_constraint_rightupper(U[i*2]) - ctrl_constraint_rightupper(U[i*2+1])
@@ -194,7 +193,7 @@ class GemCarOptimizer(object):
             con_h_expr.append(con_ru)
             con_h_expr.append(con_ll)
             con_h_expr.append(con_rl)
-
+        
         
         for i in range(obs_num):
             obs_x, obs_y = obs[i, 0], obs[i, 1]
@@ -224,16 +223,17 @@ class GemCarOptimizer(object):
             ocp.cost.Zl = 1 * np.ones((ns,))    # diagonal of Hessian wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.zu = 0 * np.ones((ns,))    
             ocp.cost.Zu = 1 * np.ones((ns,))  
-
+        '''
         
-        # initial state
-        ocp.constraints.x0 = x_ref
+        # initial state **
+        x_0 = np.array([0, 0, np.pi/2])
+        ocp.constraints.x0 = x_0
 
         # solver options
         ocp.solver_options.qp_solver = 'FULL_CONDENSING_QPOASES' # 'PARTIAL_CONDENSING_HPIPM'
         ocp.solver_options.hessian_approx = 'EXACT' # 'GAUSS_NEWTON'
         ocp.solver_options.integrator_type = 'IRK'
-        ocp.solver_options.print_level = 1
+        ocp.solver_options.print_level = 0
         ocp.solver_options.nlp_solver_tol_eq = 1e-4
         ocp.solver_options.nlp_solver_tol_ineq = 1e-4
         ocp.solver_options.nlp_solver_type = 'SQP_RTI' #'SQP''
