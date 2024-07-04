@@ -39,12 +39,14 @@ MODEL_SRC=
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_impl_dae_fun.c
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_impl_dae_fun_jac_x_xdot_z.c
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_impl_dae_jac_x_xdot_u_z.c
+MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_impl_dae_hess.c
 MODEL_OBJ := $(MODEL_SRC:.c=.o)
 
 # optimal control problem - mostly CasADi exports
 OCP_SRC=
 OCP_SRC+= GemCarModel_Bspline_constraints/GemCarModel_Bspline_constr_h_fun_jac_uxt_zt.c
 OCP_SRC+= GemCarModel_Bspline_constraints/GemCarModel_Bspline_constr_h_fun.c
+OCP_SRC+= GemCarModel_Bspline_constraints/GemCarModel_Bspline_constr_h_fun_jac_uxt_zt_hess.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun_jac.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun_jac_hess.c
