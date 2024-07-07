@@ -73,6 +73,15 @@ def cost_function_ctrlpoints(cp, tau_i, tau_i1):
 
     return cost
 
+def find_correct_index(array, value):
+
+    indicator = 0
+    index = 0
+    while indicator == 0:
+        indicator = 1 if array[index] <= value < array[index+1] else 0
+        index += 1
+    return index - 1
+
 
 
 class GemCarOptimizer(object):
@@ -96,11 +105,24 @@ class GemCarOptimizer(object):
         self.target_y = 40.0
         self.target_theta = np.pi/2
 
+        # some info of K knots
+        self.poly_degree = 3
+        self.num_ctrl_points = 4
+
+        # basic info
         self.circle_obstacles_1 = {'x': 0, 'y': 20, 'r': 1.0}
         self.circle_obstacles_2 = {'x': 1, 'y': 25, 'r': 1.0}
         self.circle_obstacles_3 = {'x': -1, 'y': 30, 'r': 1.0}
 
-        self.plot_figures = True
+        self.plot_figures = False
+        self.step_plotting = False
+        self.env_numb = 2 
+
+        self.gap = 2.5   # gap between upper and lower limit
+        self.initial_pos_sin_obs = self.gap/2   # initial position of sin obstacles
+
+        self.upper_limit = 1.5 
+        self.lower_limit = -2.0 
 
         # Ensure current working directory is current folder
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -182,7 +204,7 @@ class GemCarOptimizer(object):
 
         con_h_expr = []  # list to collect constraints
 
-        '''
+        
         for i in range(4):
             con_lu = ctrl_constraint_leftupper(U[i*2]) - ctrl_constraint_leftupper(U[i*2+1])
             con_ru = ctrl_constraint_rightupper(U[i*2]) - ctrl_constraint_rightupper(U[i*2+1])
@@ -193,8 +215,8 @@ class GemCarOptimizer(object):
             con_h_expr.append(con_ru)
             con_h_expr.append(con_ll)
             con_h_expr.append(con_rl)
-        
-        
+
+
         for i in range(obs_num):
             obs_x, obs_y = obs[i, 0], obs[i, 1]
             obs_radius = obs[i, 2]
@@ -204,11 +226,12 @@ class GemCarOptimizer(object):
 
             # add to the list
             con_h_expr.append(distance)
-        
+
+
         if con_h_expr:
             ocp.model.con_h_expr = ca.vertcat(*con_h_expr)
             ocp.constraints.lh = np.zeros((len(con_h_expr),))
-            ocp.constraints.uh = 1000 * np.ones((len(con_h_expr),))
+            ocp.constraints.uh = 10 * np.ones((len(con_h_expr),))
 
             #slack variable configuration:
 
@@ -219,11 +242,11 @@ class GemCarOptimizer(object):
 
 
             ns = len(con_h_expr)
-            ocp.cost.zl = 1000 * np.ones((ns,)) # gradient wrt lower slack at intermediate shooting nodes (1 to N-1)
+            ocp.cost.zl = 10 * np.ones((ns,)) # gradient wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.Zl = 1 * np.ones((ns,))    # diagonal of Hessian wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.zu = 0 * np.ones((ns,))    
             ocp.cost.Zu = 1 * np.ones((ns,))  
-        '''
+
         
         # initial state **
         x_0 = np.array([0, 0, np.pi/2])
@@ -236,7 +259,7 @@ class GemCarOptimizer(object):
         ocp.solver_options.print_level = 0
         ocp.solver_options.nlp_solver_tol_eq = 1e-4
         ocp.solver_options.nlp_solver_tol_ineq = 1e-4
-        ocp.solver_options.nlp_solver_type = 'SQP_RTI' #'SQP''
+        ocp.solver_options.nlp_solver_type = 'SQP_RTI' #'SQP'
 
         # compile acados ocp
         json_file = os.path.join('./'+model.name+'_acados_ocp.json')
@@ -264,14 +287,24 @@ class GemCarOptimizer(object):
         # Start Solving
         self.solver.set(0, 'lbx', x_current)
         self.solver.set(0, 'ubx', x_current)
+
+        # set tau 
+        time_interval = np.arange(0, self.N) *self.dt
+        t = np.array([0]*self.poly_degree + list(range(self.num_ctrl_points-self.poly_degree+1)) + [self.num_ctrl_points-self.poly_degree]*self.poly_degree,dtype='int')
+        
+        for k in range(self.N): # loop over control intervals
+            index_ = find_correct_index(t, time_interval[k])
+            timei = t[index_]
+            timei1 = t[index_+1]
+            tau_in = np.array([index_, timei, timei1])
+            self.solver.set(k, 'p', tau_in)
+
         status = self.solver.solve()
 
         if status != 0 :
             raise Exception('acados acados_ocp_solver returned status {}. Exiting.'.format(status))
         
         simX[0, :] = self.solver.get(0, 'x')
-        print("1--",simX)
-        print('2--',simu)
 
         for i in range(self.N):
             # solve ocp
@@ -282,8 +315,9 @@ class GemCarOptimizer(object):
         next_x = simX[1, 0]
         next_y = simX[1, 1]
         next_theta = simX[1, 2]
+        next_U = simU[1,:]
 
-        return next_x, next_y, next_theta, simX, simU
+        return next_x, next_y, next_theta, simX, next_U
 
 
     # plot function for case 2 --unchanged
@@ -398,7 +432,7 @@ class GemCarOptimizer(object):
                 # cpubar.refresh()
                 # sleep(0.5)
                 try:
-                    x_0, y_0, theta, U, X = self.solve(x_real, y_real, theta_real)
+                    x_0, y_0, theta, X, U = self.solve(x_real, y_real, theta_real)
                     ctrl_point_1 = [U[0], U[1]]
                     ctrl_point_2 = [U[2], U[3]]
                     ctrl_point_3 = [U[4], U[5]]
@@ -563,8 +597,8 @@ if __name__ == '__main__':
 
     obstacles = np.array([
     [0.0, 20, 1],        #x, y, r 20 25 30
-    [-1.0, 25, 1],
-    [1.0, 30, 1]
+    [-1.0, 25, 0.1],
+    [1.0, 30, 0.1]
     ])
 
     start_x, start_y, theta = -0.0, 0.0, np.pi/2

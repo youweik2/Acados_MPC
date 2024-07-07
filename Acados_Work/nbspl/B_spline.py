@@ -126,9 +126,11 @@ class Bspline_basis():
       
       u_t = (t - ti) / (ti_plus_1 - ti)
       UU = np.array([[1, u_t, u_t ** 2, u_t **3]])
+
       
 
-      rotated_M_BS_4 = list(zip(*M_BS_4[::-1]))
+      rotated_M_BS_4 = list(zip(*M_BS_4[::-1]))      
+      
 
       C_t = UU @ M_BS_4 @ cp
       

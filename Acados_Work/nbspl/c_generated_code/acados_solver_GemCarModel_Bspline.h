@@ -45,7 +45,7 @@
 #define GEMCARMODEL_BSPLINE_NBU    0
 #define GEMCARMODEL_BSPLINE_NSBX   0
 #define GEMCARMODEL_BSPLINE_NSBU   0
-#define GEMCARMODEL_BSPLINE_NSH    0
+#define GEMCARMODEL_BSPLINE_NSH    18
 #define GEMCARMODEL_BSPLINE_NSH0   0
 #define GEMCARMODEL_BSPLINE_NSG    0
 #define GEMCARMODEL_BSPLINE_NSPHI  0
@@ -54,7 +54,7 @@
 #define GEMCARMODEL_BSPLINE_NSPHIN 0
 #define GEMCARMODEL_BSPLINE_NSPHI0 0
 #define GEMCARMODEL_BSPLINE_NSBXN  0
-#define GEMCARMODEL_BSPLINE_NS     0
+#define GEMCARMODEL_BSPLINE_NS     18
 #define GEMCARMODEL_BSPLINE_NS0    0
 #define GEMCARMODEL_BSPLINE_NSN    0
 #define GEMCARMODEL_BSPLINE_NG     0
@@ -64,7 +64,7 @@
 #define GEMCARMODEL_BSPLINE_NY     0
 #define GEMCARMODEL_BSPLINE_NYN    0
 #define GEMCARMODEL_BSPLINE_N      20
-#define GEMCARMODEL_BSPLINE_NH     0
+#define GEMCARMODEL_BSPLINE_NH     18
 #define GEMCARMODEL_BSPLINE_NHN    0
 #define GEMCARMODEL_BSPLINE_NH0    0
 #define GEMCARMODEL_BSPLINE_NPHI0  0
@@ -128,6 +128,9 @@ typedef struct GemCarModel_Bspline_solver_capsule
 
 
     // constraints
+    external_function_param_casadi *nl_constr_h_fun_jac;
+    external_function_param_casadi *nl_constr_h_fun;
+    external_function_param_casadi *nl_constr_h_fun_jac_hess;
 
 
 

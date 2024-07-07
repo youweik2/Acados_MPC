@@ -39,6 +39,7 @@
 
 // example specific
 #include "GemCarModel_Bspline_model/GemCarModel_Bspline_model.h"
+#include "GemCarModel_Bspline_constraints/GemCarModel_Bspline_constraints.h"
 #include "GemCarModel_Bspline_cost/GemCarModel_Bspline_cost.h"
 
 
@@ -322,6 +323,22 @@ void GemCarModel_Bspline_acados_create_3_create_and_set_functions(GemCarModel_Bs
         capsule->__CAPSULE_FNC__.casadi_work = & __MODEL_BASE_FNC__ ## _work; \
         external_function_param_casadi_create(&capsule->__CAPSULE_FNC__ , 3); \
     } while(false)
+    // constraints.constr_type == "BGH" and dims.nh > 0
+    capsule->nl_constr_h_fun_jac = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
+    for (int i = 0; i < N-1; i++) {
+        MAP_CASADI_FNC(nl_constr_h_fun_jac[i], GemCarModel_Bspline_constr_h_fun_jac_uxt_zt);
+    }
+    capsule->nl_constr_h_fun = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
+    for (int i = 0; i < N-1; i++) {
+        MAP_CASADI_FNC(nl_constr_h_fun[i], GemCarModel_Bspline_constr_h_fun);
+    }
+    
+    capsule->nl_constr_h_fun_jac_hess = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
+    for (int i = 0; i < N-1; i++) {
+        MAP_CASADI_FNC(nl_constr_h_fun_jac_hess[i], GemCarModel_Bspline_constr_h_fun_jac_uxt_zt_hess);
+    }
+    
+
 
 
     // implicit dae
@@ -473,6 +490,76 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
 
 
 
+    // slacks
+    double* zlumem = calloc(4*NS, sizeof(double));
+    double* Zl = zlumem+NS*0;
+    double* Zu = zlumem+NS*1;
+    double* zl = zlumem+NS*2;
+    double* zu = zlumem+NS*3;
+    // change only the non-zero elements:
+    Zl[0] = 1;
+    Zl[1] = 1;
+    Zl[2] = 1;
+    Zl[3] = 1;
+    Zl[4] = 1;
+    Zl[5] = 1;
+    Zl[6] = 1;
+    Zl[7] = 1;
+    Zl[8] = 1;
+    Zl[9] = 1;
+    Zl[10] = 1;
+    Zl[11] = 1;
+    Zl[12] = 1;
+    Zl[13] = 1;
+    Zl[14] = 1;
+    Zl[15] = 1;
+    Zl[16] = 1;
+    Zl[17] = 1;
+    Zu[0] = 1;
+    Zu[1] = 1;
+    Zu[2] = 1;
+    Zu[3] = 1;
+    Zu[4] = 1;
+    Zu[5] = 1;
+    Zu[6] = 1;
+    Zu[7] = 1;
+    Zu[8] = 1;
+    Zu[9] = 1;
+    Zu[10] = 1;
+    Zu[11] = 1;
+    Zu[12] = 1;
+    Zu[13] = 1;
+    Zu[14] = 1;
+    Zu[15] = 1;
+    Zu[16] = 1;
+    Zu[17] = 1;
+    zl[0] = 10;
+    zl[1] = 10;
+    zl[2] = 10;
+    zl[3] = 10;
+    zl[4] = 10;
+    zl[5] = 10;
+    zl[6] = 10;
+    zl[7] = 10;
+    zl[8] = 10;
+    zl[9] = 10;
+    zl[10] = 10;
+    zl[11] = 10;
+    zl[12] = 10;
+    zl[13] = 10;
+    zl[14] = 10;
+    zl[15] = 10;
+    zl[16] = 10;
+    zl[17] = 10;
+
+    for (int i = 1; i < N; i++)
+    {
+        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "Zl", Zl);
+        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "Zu", Zu);
+        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "zl", zl);
+        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "zu", zu);
+    }
+    free(zlumem);
 
 
 
@@ -518,6 +605,40 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
 
 
 
+    // set up soft bounds for nonlinear constraints
+    int* idxsh = malloc(NSH * sizeof(int));
+    
+    idxsh[0] = 0;
+    idxsh[1] = 1;
+    idxsh[2] = 2;
+    idxsh[3] = 3;
+    idxsh[4] = 4;
+    idxsh[5] = 5;
+    idxsh[6] = 6;
+    idxsh[7] = 7;
+    idxsh[8] = 8;
+    idxsh[9] = 9;
+    idxsh[10] = 10;
+    idxsh[11] = 11;
+    idxsh[12] = 12;
+    idxsh[13] = 13;
+    idxsh[14] = 14;
+    idxsh[15] = 15;
+    idxsh[16] = 16;
+    idxsh[17] = 17;
+    double* lush = calloc(2*NSH, sizeof(double));
+    double* lsh = lush;
+    double* ush = lush + NSH;
+    
+
+    for (int i = 1; i < N; i++)
+    {
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "idxsh", idxsh);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lsh", lsh);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "ush", ush);
+    }
+    free(idxsh);
+    free(lush);
 
 
 
@@ -526,6 +647,47 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
 
 
 
+    // set up nonlinear constraints for stage 1 to N-1
+    double* luh = calloc(2*NH, sizeof(double));
+    double* lh = luh;
+    double* uh = luh + NH;
+
+    
+
+    
+    uh[0] = 10;
+    uh[1] = 10;
+    uh[2] = 10;
+    uh[3] = 10;
+    uh[4] = 10;
+    uh[5] = 10;
+    uh[6] = 10;
+    uh[7] = 10;
+    uh[8] = 10;
+    uh[9] = 10;
+    uh[10] = 10;
+    uh[11] = 10;
+    uh[12] = 10;
+    uh[13] = 10;
+    uh[14] = 10;
+    uh[15] = 10;
+    uh[16] = 10;
+    uh[17] = 10;
+
+    for (int i = 1; i < N; i++)
+    {
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun_jac",
+                                      &capsule->nl_constr_h_fun_jac[i-1]);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun",
+                                      &capsule->nl_constr_h_fun[i-1]);
+        
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i,
+                                      "nl_constr_h_fun_jac_hess", &capsule->nl_constr_h_fun_jac_hess[i-1]);
+        
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lh", lh);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "uh", uh);
+    }
+    free(luh);
 
 
 
@@ -829,6 +991,9 @@ int GemCarModel_Bspline_acados_update_params(GemCarModel_Bspline_solver_capsule*
         }
         else
         {
+            capsule->nl_constr_h_fun_jac[stage-1].set_param(capsule->nl_constr_h_fun_jac+stage-1, p);
+            capsule->nl_constr_h_fun[stage-1].set_param(capsule->nl_constr_h_fun+stage-1, p);
+            capsule->nl_constr_h_fun_jac_hess[stage-1].set_param(capsule->nl_constr_h_fun_jac_hess+stage-1, p);
         }
 
         // cost
@@ -899,6 +1064,9 @@ int GemCarModel_Bspline_acados_update_params_sparse(GemCarModel_Bspline_solver_c
         }
         else
         {
+            capsule->nl_constr_h_fun_jac[stage-1].set_param_sparse(capsule->nl_constr_h_fun_jac+stage-1, n_update, idx, p);
+            capsule->nl_constr_h_fun[stage-1].set_param_sparse(capsule->nl_constr_h_fun+stage-1, n_update, idx, p);
+            capsule->nl_constr_h_fun_jac_hess[stage-1].set_param_sparse(capsule->nl_constr_h_fun_jac_hess+stage-1, n_update, idx, p);
         }
 
         // cost
@@ -1010,6 +1178,15 @@ int GemCarModel_Bspline_acados_free(GemCarModel_Bspline_solver_capsule* capsule)
     
 
     // constraints
+    for (int i = 0; i < N-1; i++)
+    {
+        external_function_param_casadi_free(&capsule->nl_constr_h_fun_jac[i]);
+        external_function_param_casadi_free(&capsule->nl_constr_h_fun[i]);
+        external_function_param_casadi_free(&capsule->nl_constr_h_fun_jac_hess[i]);
+    }
+    free(capsule->nl_constr_h_fun_jac);
+    free(capsule->nl_constr_h_fun);
+    free(capsule->nl_constr_h_fun_jac_hess);
 
     return 0;
 }
