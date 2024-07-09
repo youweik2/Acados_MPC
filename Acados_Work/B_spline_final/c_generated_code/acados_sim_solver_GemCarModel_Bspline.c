@@ -74,7 +74,7 @@ int GemCarModel_Bspline_acados_sim_create(GemCarModel_Bspline_sim_solver_capsule
     bool tmp_bool;
 
     
-    double Tsim = 0.02;
+    double Tsim = 0.05;
 
     
     capsule->sim_impl_dae_fun = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi));
@@ -105,15 +105,6 @@ int GemCarModel_Bspline_acados_sim_create(GemCarModel_Bspline_sim_solver_capsule
     capsule->sim_impl_dae_jac_x_xdot_u_z->casadi_n_in = &GemCarModel_Bspline_impl_dae_jac_x_xdot_u_z_n_in;
     capsule->sim_impl_dae_jac_x_xdot_u_z->casadi_n_out = &GemCarModel_Bspline_impl_dae_jac_x_xdot_u_z_n_out;
     external_function_param_casadi_create(capsule->sim_impl_dae_jac_x_xdot_u_z, np);
-    capsule->sim_impl_dae_hess = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi));
-    // external_function_param_casadi impl_dae_jac_x_xdot_u_z;
-    capsule->sim_impl_dae_hess->casadi_fun = &GemCarModel_Bspline_impl_dae_hess;
-    capsule->sim_impl_dae_hess->casadi_work = &GemCarModel_Bspline_impl_dae_hess_work;
-    capsule->sim_impl_dae_hess->casadi_sparsity_in = &GemCarModel_Bspline_impl_dae_hess_sparsity_in;
-    capsule->sim_impl_dae_hess->casadi_sparsity_out = &GemCarModel_Bspline_impl_dae_hess_sparsity_out;
-    capsule->sim_impl_dae_hess->casadi_n_in = &GemCarModel_Bspline_impl_dae_hess_n_in;
-    capsule->sim_impl_dae_hess->casadi_n_out = &GemCarModel_Bspline_impl_dae_hess_n_out;
-    external_function_param_casadi_create(capsule->sim_impl_dae_hess, np);
 
     
 
@@ -168,8 +159,6 @@ int GemCarModel_Bspline_acados_sim_create(GemCarModel_Bspline_sim_solver_capsule
                  "impl_ode_fun_jac_x_xdot", capsule->sim_impl_dae_fun_jac_x_xdot_z);
     GemCarModel_Bspline_sim_config->model_set(GemCarModel_Bspline_sim_in->model,
                  "impl_ode_jac_x_xdot_u", capsule->sim_impl_dae_jac_x_xdot_u_z);
-    GemCarModel_Bspline_sim_config->model_set(GemCarModel_Bspline_sim_in->model,
-                "impl_dae_hess", capsule->sim_impl_dae_hess);
 
     // sim solver
     sim_solver *GemCarModel_Bspline_sim_solver = sim_solver_create(GemCarModel_Bspline_sim_config,
@@ -262,8 +251,6 @@ int GemCarModel_Bspline_acados_sim_free(GemCarModel_Bspline_sim_solver_capsule *
     free(capsule->sim_impl_dae_fun);
     free(capsule->sim_impl_dae_fun_jac_x_xdot_z);
     free(capsule->sim_impl_dae_jac_x_xdot_u_z);
-    external_function_param_casadi_free(capsule->sim_impl_dae_hess);
-    free(capsule->sim_impl_dae_hess);
 
     return 0;
 }
@@ -282,7 +269,6 @@ int GemCarModel_Bspline_acados_sim_update_params(GemCarModel_Bspline_sim_solver_
     capsule->sim_impl_dae_fun[0].set_param(capsule->sim_impl_dae_fun, p);
     capsule->sim_impl_dae_fun_jac_x_xdot_z[0].set_param(capsule->sim_impl_dae_fun_jac_x_xdot_z, p);
     capsule->sim_impl_dae_jac_x_xdot_u_z[0].set_param(capsule->sim_impl_dae_jac_x_xdot_u_z, p);
-    capsule->sim_impl_dae_hess[0].set_param(capsule->sim_impl_dae_hess, p);
 
     return status;
 }

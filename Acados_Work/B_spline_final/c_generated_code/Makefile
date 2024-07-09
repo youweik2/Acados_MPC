@@ -39,11 +39,12 @@ MODEL_SRC=
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_impl_dae_fun.c
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_impl_dae_fun_jac_x_xdot_z.c
 MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_impl_dae_jac_x_xdot_u_z.c
-MODEL_SRC+= GemCarModel_Bspline_model/GemCarModel_Bspline_impl_dae_hess.c
 MODEL_OBJ := $(MODEL_SRC:.c=.o)
 
 # optimal control problem - mostly CasADi exports
 OCP_SRC=
+OCP_SRC+= GemCarModel_Bspline_constraints/GemCarModel_Bspline_constr_h_fun_jac_uxt_zt.c
+OCP_SRC+= GemCarModel_Bspline_constraints/GemCarModel_Bspline_constr_h_fun.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun_jac.c
 OCP_SRC+= GemCarModel_Bspline_cost/GemCarModel_Bspline_cost_ext_cost_0_fun_jac_hess.c
@@ -90,12 +91,10 @@ INCLUDE_PATH = /home/ywke/Work/acados/include
 LIB_PATH = /home/ywke/Work/acados/lib
 
 # preprocessor flags for make's implicit rules
-CPPFLAGS += -DACADOS_WITH_QPOASES
 CPPFLAGS+= -I$(INCLUDE_PATH)
 CPPFLAGS+= -I$(INCLUDE_PATH)/acados
 CPPFLAGS+= -I$(INCLUDE_PATH)/blasfeo/include
 CPPFLAGS+= -I$(INCLUDE_PATH)/hpipm/include
-CPPFLAGS+= -I $(INCLUDE_PATH)/qpOASES_e/
 
 
 # define the c-compiler flags for make's implicit rules
@@ -113,7 +112,7 @@ LDLIBS+= -lacados
 LDLIBS+= -lhpipm
 LDLIBS+= -lblasfeo
 LDLIBS+= -lm
-LDLIBS+= -lqpOASES_e
+LDLIBS+= 
 
 # libraries
 LIBACADOS_SOLVER=libacados_solver_GemCarModel_Bspline.so
@@ -152,7 +151,7 @@ ocp_cython_c: ocp_shared_lib
 	-o acados_ocp_solver_pyx.c \
 	-I $(INCLUDE_PATH)/../interfaces/acados_template/acados_template \
 	$(INCLUDE_PATH)/../interfaces/acados_template/acados_template/acados_ocp_solver_pyx.pyx \
-	-I /home/ywke/Work/24Summer/Acados_Work/nbspl/c_generated_code \
+	-I /home/ywke/Work/24Summer/Acados_Work/B_spline_test/test/c_generated_code \
 
 ocp_cython_o: ocp_cython_c
 	$(CC) $(ACADOS_FLAGS) -c -O2 \
@@ -179,7 +178,7 @@ sim_cython_c: sim_shared_lib
 	-o acados_sim_solver_pyx.c \
 	-I $(INCLUDE_PATH)/../interfaces/acados_template/acados_template \
 	$(INCLUDE_PATH)/../interfaces/acados_template/acados_template/acados_sim_solver_pyx.pyx \
-	-I /home/ywke/Work/24Summer/Acados_Work/nbspl/c_generated_code \
+	-I /home/ywke/Work/24Summer/Acados_Work/B_spline_test/test/c_generated_code \
 
 sim_cython_o: sim_cython_c
 	$(CC) $(ACADOS_FLAGS) -c -O2 \

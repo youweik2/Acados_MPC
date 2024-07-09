@@ -44,15 +44,7 @@
         "idxsh": [
             0,
             1,
-            2,
-            3,
-            4,
-            5,
-            6,
-            7,
-            8,
-            9,
-            10
+            2
         ],
         "idxsh_0": [],
         "idxsh_e": [],
@@ -61,13 +53,13 @@
         "idxsphi_e": [],
         "lbu": [
             -1.5,
-            -3.0,
+            -1.5707963267948966,
             -1.5,
-            -3.0,
+            -1.5707963267948966,
             -1.5,
-            -3.0,
+            -1.5707963267948966,
             -1.5,
-            -3.0
+            -1.5707963267948966
         ],
         "lbx": [
             -4,
@@ -85,14 +77,6 @@
         "lh": [
             0.0,
             0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
             0.0
         ],
         "lh_0": [],
@@ -108,14 +92,6 @@
         "lsh": [
             0.0,
             0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
             0.0
         ],
         "lsh_0": [],
@@ -125,13 +101,13 @@
         "lsphi_e": [],
         "ubu": [
             1.5,
-            3.0,
+            1.5707963267948966,
             1.5,
-            3.0,
+            1.5707963267948966,
             1.5,
-            3.0,
+            1.5707963267948966,
             1.5,
-            3.0
+            1.5707963267948966
         ],
         "ubx": [
             4.0,
@@ -149,14 +125,6 @@
         "uh": [
             1000.0,
             1000.0,
-            1000.0,
-            1000.0,
-            1000.0,
-            1000.0,
-            1000.0,
-            1000.0,
-            1000.0,
-            1000.0,
             1000.0
         ],
         "uh_0": [],
@@ -170,14 +138,6 @@
         "usg": [],
         "usg_e": [],
         "ush": [
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
             0.0,
             0.0,
             0.0
@@ -202,27 +162,11 @@
         "Zl": [
             1.0,
             1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
             1.0
         ],
         "Zl_0": [],
         "Zl_e": [],
         "Zu": [
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
-            1.0,
             1.0,
             1.0,
             1.0
@@ -239,29 +183,13 @@
         "yref_0": [],
         "yref_e": [],
         "zl": [
-            100.0,
-            100.0,
-            100.0,
-            100.0,
-            100.0,
-            100.0,
-            100.0,
-            100.0,
-            100.0,
-            100.0,
-            100.0
+            10000.0,
+            10000.0,
+            10000.0
         ],
         "zl_0": [],
         "zl_e": [],
         "zu": [
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
             0.0,
             0.0,
             0.0
@@ -282,7 +210,7 @@
         "nbxe_0": 3,
         "ng": 0,
         "ng_e": 0,
-        "nh": 11,
+        "nh": 3,
         "nh_0": 0,
         "nh_e": 0,
         "np": 3,
@@ -292,7 +220,7 @@
         "nr": 0,
         "nr_0": 0,
         "nr_e": 0,
-        "ns": 11,
+        "ns": 3,
         "ns_0": 0,
         "ns_e": 0,
         "nsbu": 0,
@@ -300,7 +228,7 @@
         "nsbx_e": 0,
         "nsg": 0,
         "nsg_e": 0,
-        "nsh": 11,
+        "nsh": 3,
         "nsh_0": 0,
         "nsh_e": 0,
         "nsphi": 0,
@@ -315,7 +243,7 @@
     },
     "json_file": "./GemCarModel_Bspline_acados_ocp.json",
     "model": {
-        "con_h_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaegpaaaaaaaaaaaaaaalaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaalaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaeaaaaaaaaaaaaaaafaaaaaaaaaaaaaaagaaaaaaaaaaaaaaahaaaaaaaaaaaaaaaiaaaaaaaaaaaaaaajaaaaaaaaaaaaaaakaaaaaaaaaaaaaaalaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgcaaaaaaaegpcaaaaaaaaaaaaaadaaaaaaafhpfadegmcaaaaaaaaaaaaaajgdaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaadaaaaaaafhpfbdcheaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgopppppppchcaaaaaaaaaaaaaaacheaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachgaaaaaaaaaaaaaaacheaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaadaaaaaaafhpfcdcheaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaadaaaaaaafhpfddcheaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachabaaaaaaaaaaaaaacheaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachdbaaaaaaaaaaaaaacheaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaadaaaaaaafhpfedcheaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaadaaaaaaafhpffdcheaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachmbaaaaaaaaaaaaaacheaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachpbaaaaaaaaaaaaaacheaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaadaaaaaaafhpfgdcheaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaadaaaaaaafhpfhdcheaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachicaaaaaaaaaaaaaacheaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaegdaaaaaaaaaaaaaaachkaaaaaaaaaaaaaaachlcaaaaaaaaaaaaaacheaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaeglaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaabaaaaaaaiheglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaabaaaaaaajhegmcaaaaaaaaaaaaaajgebaaaaaaegmcaaaaaaaaaaaaaabdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaeglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaachedaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaangeglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaachgdaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgjbaaaaaaegmcaaaaaaaaaaaaaachmhebokhebokheipdegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaeglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaachedaaaaaaaaaaaaaachldaaaaaaaaaaaaaaeglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaachgdaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgobaaaaaacheeaaaaaaaaaaaaaa",
+        "con_h_expr": "jhpnnagiieahaaaadaaaaaaaaaaaaaaaaaeghaaaaaaaaaaaaaaadaaaaaaaaaaaaaaabaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabaaaaaaaaaaaaaaacaaaaaaaaaaaaaaadaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaeglaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaabaaaaaaaiheglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegpcaaaaaaaaaaaaaabaaaaaaajhegmcaaaaaaaaaaaaaajgebaaaaaaegmcaaaaaaaaaaaaaachaaaaaaaaaaaacaaeegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaeglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaangeglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaachdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgjbaaaaaachiaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaaegbaaaaaaaaaaaaaaaeglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaachbaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaabdeglaaaaaaaaaaaaaaaegcaaaaaaaaaaaaaaachdaaaaaaaaaaaaaaaegmcaaaaaaaaaaaaaajgobaaaaaachiaaaaaaaaaaaaaaa",
         "con_h_expr_0": null,
         "con_h_expr_e": null,
         "con_phi_expr": null,

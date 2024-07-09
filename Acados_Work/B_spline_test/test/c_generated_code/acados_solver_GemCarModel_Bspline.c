@@ -490,36 +490,12 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
     Zl[0] = 1;
     Zl[1] = 1;
     Zl[2] = 1;
-    Zl[3] = 1;
-    Zl[4] = 1;
-    Zl[5] = 1;
-    Zl[6] = 1;
-    Zl[7] = 1;
-    Zl[8] = 1;
-    Zl[9] = 1;
-    Zl[10] = 1;
     Zu[0] = 1;
     Zu[1] = 1;
     Zu[2] = 1;
-    Zu[3] = 1;
-    Zu[4] = 1;
-    Zu[5] = 1;
-    Zu[6] = 1;
-    Zu[7] = 1;
-    Zu[8] = 1;
-    Zu[9] = 1;
-    Zu[10] = 1;
-    zl[0] = 100;
-    zl[1] = 100;
-    zl[2] = 100;
-    zl[3] = 100;
-    zl[4] = 100;
-    zl[5] = 100;
-    zl[6] = 100;
-    zl[7] = 100;
-    zl[8] = 100;
-    zl[9] = 100;
-    zl[10] = 100;
+    zl[0] = 10000;
+    zl[1] = 10000;
+    zl[2] = 10000;
 
     for (int i = 1; i < N; i++)
     {
@@ -587,20 +563,20 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
     
     lbu[0] = -1.5;
     ubu[0] = 1.5;
-    lbu[1] = -3;
-    ubu[1] = 3;
+    lbu[1] = -1.5707963267948966;
+    ubu[1] = 1.5707963267948966;
     lbu[2] = -1.5;
     ubu[2] = 1.5;
-    lbu[3] = -3;
-    ubu[3] = 3;
+    lbu[3] = -1.5707963267948966;
+    ubu[3] = 1.5707963267948966;
     lbu[4] = -1.5;
     ubu[4] = 1.5;
-    lbu[5] = -3;
-    ubu[5] = 3;
+    lbu[5] = -1.5707963267948966;
+    ubu[5] = 1.5707963267948966;
     lbu[6] = -1.5;
     ubu[6] = 1.5;
-    lbu[7] = -3;
-    ubu[7] = 3;
+    lbu[7] = -1.5707963267948966;
+    ubu[7] = 1.5707963267948966;
 
     for (int i = 0; i < N; i++)
     {
@@ -620,14 +596,6 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
     idxsh[0] = 0;
     idxsh[1] = 1;
     idxsh[2] = 2;
-    idxsh[3] = 3;
-    idxsh[4] = 4;
-    idxsh[5] = 5;
-    idxsh[6] = 6;
-    idxsh[7] = 7;
-    idxsh[8] = 8;
-    idxsh[9] = 9;
-    idxsh[10] = 10;
     double* lush = calloc(2*NSH, sizeof(double));
     double* lsh = lush;
     double* ush = lush + NSH;
@@ -684,14 +652,6 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
     uh[0] = 1000;
     uh[1] = 1000;
     uh[2] = 1000;
-    uh[3] = 1000;
-    uh[4] = 1000;
-    uh[5] = 1000;
-    uh[6] = 1000;
-    uh[7] = 1000;
-    uh[8] = 1000;
-    uh[9] = 1000;
-    uh[10] = 1000;
 
     for (int i = 1; i < N; i++)
     {
