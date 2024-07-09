@@ -209,6 +209,10 @@ class GemCarOptimizer(object):
         x0[1] = y_real
         x0[2] = theta_real
 
+        x01 = np.array([x_real,y_real,theta_real])
+        print("x01",x01)
+        print("x00",x0)
+
         xs = np.zeros(3)
         xs[0] = self.target_x
         xs[1] = self.target_y

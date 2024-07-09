@@ -73,6 +73,15 @@ def cost_function_ctrlpoints(cp, tau_i, tau_i1):
 
     return cost
 
+def find_correct_index(array, value):
+
+    indicator = 0
+    index = 0
+    while indicator == 0:
+        indicator = 1 if array[index] <= value < array[index+1] else 0
+        index += 1
+    return index - 1
+
 
 
 class GemCarOptimizer(object):
@@ -96,11 +105,24 @@ class GemCarOptimizer(object):
         self.target_y = 40.0
         self.target_theta = np.pi/2
 
+        # some info of K knots
+        self.poly_degree = 3
+        self.num_ctrl_points = 4
+
+        # basic info
         self.circle_obstacles_1 = {'x': 0, 'y': 20, 'r': 1.0}
         self.circle_obstacles_2 = {'x': 1, 'y': 25, 'r': 1.0}
         self.circle_obstacles_3 = {'x': -1, 'y': 30, 'r': 1.0}
 
         self.plot_figures = True
+        self.step_plotting = False
+        self.env_numb = 2 
+
+        self.gap = 2.5   # gap between upper and lower limit
+        self.initial_pos_sin_obs = self.gap/2   # initial position of sin obstacles
+
+        self.upper_limit = 1.5 
+        self.lower_limit = -2.0 
 
         # Ensure current working directory is current folder
         os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -120,7 +142,6 @@ class GemCarOptimizer(object):
         ocp = AcadosOcp()
         ocp.acados_include_path = acados_source_path + '/include'
         ocp.acados_lib_path = acados_source_path + '/lib'
-
         ocp.model = model
         ocp.dims.N = self.N
         ocp.solver_options.tf = self.T
@@ -130,9 +151,10 @@ class GemCarOptimizer(object):
         ocp.parameter_values = np.zeros(ntau)
 
         # get the cost function
-
+        ocp.cost.cost_type = 'EXTERNAL'
+        ocp.cost.cost_type_e = 'EXTERNAL'        
+        
         Q = np.array([[10.0, 0.0, 0.0], [0.0, 10.0, 0.0], [0.0, 0.0, 0.01]]) # X states cost
-        R = np.diag([0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1])
 
         U = ocp.model.u
         ctrl_point_1 = np.array([U[0], U[1]])
@@ -144,33 +166,26 @@ class GemCarOptimizer(object):
         x_aim = np.array([self.target_x, self.target_y, self.target_theta])
         x_gap = x_aim - ocp.model.x
 
-        ocp.model.cost_expr_ext_cost = x_gap.T @ Q @ x_gap + ocp.model.u.T @ R @ ocp.model.u
+        ocp.model.cost_expr_ext_cost = x_gap.T @ Q @ x_gap + cost_function_ctrlpoints(cp, 0, 1)
         ocp.model.cost_expr_ext_cost_e = x_gap.T @ Q @ x_gap
         
-        ocp.cost.cost_type = 'EXTERNAL'
-        ocp.cost.cost_type_e = 'EXTERNAL'
-
-        '''
-        ocp.cost.Vx = np.zeros((ny, nx))
-        ocp.cost.Vx[:nx, :nx] = np.eye(nx)
-        ocp.cost.Vu = np.zeros((ny, nu))
-        ocp.cost.Vu[-nu:, -nu:] = np.eye(nu)
-        ocp.cost.Vx_e = np.eye(nx)
-        '''
-
         # set constraints
         
         v_limit = 1.5
         omega_limit = 3.0
         constraint_k = omega_limit/v_limit
 
+        ocp.constraints.lbu = np.array([-v_limit, -omega_limit, -v_limit, -omega_limit, \
+                                        -v_limit, -omega_limit, -v_limit, -omega_limit])
+        ocp.constraints.ubu = np.array([v_limit, omega_limit, v_limit, omega_limit, \
+                                        v_limit, omega_limit, v_limit, omega_limit])
+        ocp.constraints.idxbu = np.array([0, 1, 2, 3, 4, 5, 6, 7])
+        ocp.constraints.lbx = np.array([-4, -100, -2 * np.pi])
+        ocp.constraints.ubx = np.array([4, 100, 2 * np.pi])
+        ocp.constraints.idxbx = np.array([0, 1, 2])
+
         
         ocp.constraints.constr_type = 'BGH'
-        '''
-        ocp.constraints.lbu = np.array([-v_limit, -omega_limit])
-        ocp.constraints.ubu = np.array([v_limit, omega_limit])
-        ocp.constraints.idxbu = np.array([0, 1])
-        
         
         # define the constraints in u
         ctrl_constraint_leftupper = lambda ctrl_point: constraint_k*ctrl_point + omega_limit
@@ -184,9 +199,10 @@ class GemCarOptimizer(object):
 
         obs_num, obs_dim = obstacles.shape
         obs = obstacles
-
+        '''
         con_h_expr = []  # list to collect constraints
-
+        
+        
         for i in range(4):
             con_lu = ctrl_constraint_leftupper(U[i*2]) - ctrl_constraint_leftupper(U[i*2+1])
             con_ru = ctrl_constraint_rightupper(U[i*2]) - ctrl_constraint_rightupper(U[i*2+1])
@@ -198,7 +214,6 @@ class GemCarOptimizer(object):
             con_h_expr.append(con_ll)
             con_h_expr.append(con_rl)
 
-        
         for i in range(obs_num):
             obs_x, obs_y = obs[i, 0], obs[i, 1]
             obs_radius = obs[i, 2]
@@ -207,12 +222,13 @@ class GemCarOptimizer(object):
             distance = ((x - obs_x)**2 + (y - obs_y)**2) - ((obs_radius)**2)
 
             # add to the list
-            con_h_expr.append(distance)
-        
+            # con_h_expr.append(distance)
+
+
         if con_h_expr:
             ocp.model.con_h_expr = ca.vertcat(*con_h_expr)
             ocp.constraints.lh = np.zeros((len(con_h_expr),))
-            ocp.constraints.uh = 1000 * np.ones((len(con_h_expr),))
+            ocp.constraints.uh = 100 * np.ones((len(con_h_expr),))
 
             #slack variable configuration:
 
@@ -223,24 +239,24 @@ class GemCarOptimizer(object):
 
 
             ns = len(con_h_expr)
-            ocp.cost.zl = 1000 * np.ones((ns,)) # gradient wrt lower slack at intermediate shooting nodes (1 to N-1)
+            ocp.cost.zl = 100 * np.ones((ns,)) # gradient wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.Zl = 1 * np.ones((ns,))    # diagonal of Hessian wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.zu = 0 * np.ones((ns,))    
             ocp.cost.Zu = 1 * np.ones((ns,))  
         '''
-
-        # initial state
-        x_ref = np.array([0, 0, np.pi/2])
-        ocp.constraints.x0 = x_ref
+        
+        # initial state **
+        x_0 = np.array([0, 0, np.pi/2])
+        ocp.constraints.x0 = x_0
 
         # solver options
         ocp.solver_options.qp_solver = 'PARTIAL_CONDENSING_HPIPM' # 'FULL_CONDENSING_QPOASES'
-        ocp.solver_options.hessian_approx = 'EXACT' # 'GAUSS_NEWTON'
+        ocp.solver_options.hessian_approx = 'EXACT' # don't use 'GAUSS_NEWTON'
         ocp.solver_options.integrator_type = 'IRK'
         ocp.solver_options.print_level = 0
         ocp.solver_options.nlp_solver_tol_eq = 1e-4
         ocp.solver_options.nlp_solver_tol_ineq = 1e-4
-        ocp.solver_options.nlp_solver_type = 'SQP_RTI' #'SQP''
+        ocp.solver_options.nlp_solver_type = 'SQP_RTI' #'SQP'
 
         # compile acados ocp
         json_file = os.path.join('./'+model.name+'_acados_ocp.json')
@@ -250,39 +266,38 @@ class GemCarOptimizer(object):
 
     def solve(self, x_real, y_real, theta_real):
 
-        x0 = np.zeros(3)
-        x0[0] = x_real
-        x0[1] = y_real
-        x0[2] = theta_real
-
-        xs = np.zeros(3)
-        xs[0] = self.target_x
-        xs[1] = self.target_y
-        xs[2] = self.target_theta
+        x0 = np.array([x_real,y_real,theta_real])
 
         simX = np.zeros((self.N+1, self.nx))
         simU = np.zeros((self.N, self.nu))
+
         x_current = x0
+        
         simX[0, :] = x0.reshape(1, -1)  
 
-        '''
-        for i in range(self.N):
-            xs_between = np.concatenate((xs, np.zeros(self.nu)))
-            self.solver.set(i, 'yref', xs_between)
-        self.solver.set(self.N, 'yref', xs)
-        '''
         # Start Solving
-        '''
         self.solver.set(0, 'lbx', x_current)
         self.solver.set(0, 'ubx', x_current)
-        '''
+
+        # set tau 
+        time_interval = np.arange(0, self.N) *self.dt
+        t = np.array([0]*self.poly_degree + list(range(self.num_ctrl_points-self.poly_degree+1)) + [self.num_ctrl_points-self.poly_degree]*self.poly_degree,dtype='int')
+        
+        for k in range(self.N): # loop over control intervals
+            index_ = find_correct_index(t, time_interval[k])
+            timei = t[index_]
+            timei1 = t[index_+1]
+            tau_in = np.array([time_interval[k], timei, timei1])
+            self.solver.set(k, 'p', tau_in)
+
         status = self.solver.solve()
 
         if status != 0 :
             raise Exception('acados acados_ocp_solver returned status {}. Exiting.'.format(status))
         
         simX[0, :] = self.solver.get(0, 'x')
-        print('x',simX)
+
+        
 
         for i in range(self.N):
             # solve ocp
@@ -293,8 +308,12 @@ class GemCarOptimizer(object):
         next_x = simX[1, 0]
         next_y = simX[1, 1]
         next_theta = simX[1, 2]
+        next_U = simU[1,:]
+        
+        print("next",simX[1,:])
 
-        return next_x, next_y, next_theta, simX, simU
+    
+        return next_x, next_y, next_theta, simX, next_U
 
 
     # plot function for case 2 --unchanged
@@ -409,7 +428,7 @@ class GemCarOptimizer(object):
                 # cpubar.refresh()
                 # sleep(0.5)
                 try:
-                    x_0, y_0, theta, U, X = self.solve(x_real, y_real, theta_real)
+                    x_0, y_0, theta, X, U = self.solve(x_real, y_real, theta_real)
                     ctrl_point_1 = [U[0], U[1]]
                     ctrl_point_2 = [U[2], U[3]]
                     ctrl_point_3 = [U[4], U[5]]
@@ -574,11 +593,11 @@ if __name__ == '__main__':
 
     obstacles = np.array([
     [0.0, 20, 1],        #x, y, r 20 25 30
-    [-1.0, 25, 1],
-    [1.0, 30, 1]
+    [-1.0, 25, 0.1],
+    [1.0, 30, 0.1]
     ])
 
-    start_x, start_y, theta = -0.0, 0.0, np.pi/2
+    start_x, start_y, theta = -4.0, 0.0, np.pi/2
 
     car_model = GemCarBsplModel()
     opt = GemCarOptimizer(m_model=car_model.model, 

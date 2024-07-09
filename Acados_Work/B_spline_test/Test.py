@@ -42,38 +42,6 @@ def safe_mkdir_recursive(directory, overwrite=False):
             except:
                 print('Error while removing directory {}'.format(directory))
 
-def coefficients(tau_i, tau_i1):
-
-    gm11 = tau_i1/7 - tau_i/7
-    gm21 = tau_i1/14 - tau_i/14
-    gm31 = tau_i1/35 - tau_i/35
-    gm41 = tau_i1/140 - tau_i/140
-    gm12 = gm21
-    gm22 = (3*tau_i1)/35 - (3*tau_i)/35
-    gm32 = (9*tau_i1)/140 - (9*tau_i)/140
-    gm42 = tau_i1/35 - tau_i/35
-    gm13 = gm31
-    gm23 = gm32
-    gm33 = (3*tau_i1)/35 - (3*tau_i)/35
-    gm43 = tau_i1/14 - tau_i/14
-    gm14 = gm41
-    gm24 = gm42
-    gm34 = gm43
-    gm44 = tau_i1/7 - tau_i/7
-
-    return [gm11, gm21, gm31, gm41, gm12, gm22, gm32, gm42, gm13, gm23, gm33, gm43, gm14, gm24, gm34, gm44]
-
-def cost_function_ctrlpoints(cp, tau_i, tau_i1):
-
-    gm = coefficients(tau_i, tau_i1)
-    cost = 0
-    for i in range(4):
-        for j in range(4):
-            cost +=  gm[i*4+j] * cp[j] @ cp[i].T
-
-    return cost
-
-
 
 class GemCarOptimizer(object):
 

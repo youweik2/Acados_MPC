@@ -74,7 +74,7 @@ int GemCarModel_Bspline_acados_sim_create(GemCarModel_Bspline_sim_solver_capsule
     bool tmp_bool;
 
     
-    double Tsim = 0.05;
+    double Tsim = 0.02;
 
     
     capsule->sim_impl_dae_fun = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi));

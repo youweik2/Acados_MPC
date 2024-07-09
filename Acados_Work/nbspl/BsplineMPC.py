@@ -114,7 +114,7 @@ class GemCarOptimizer(object):
         self.circle_obstacles_2 = {'x': 1, 'y': 25, 'r': 1.0}
         self.circle_obstacles_3 = {'x': -1, 'y': 30, 'r': 1.0}
 
-        self.plot_figures = False
+        self.plot_figures = True
         self.step_plotting = False
         self.env_numb = 2 
 
@@ -173,14 +173,6 @@ class GemCarOptimizer(object):
         ocp.cost.cost_type = 'EXTERNAL'
         ocp.cost.cost_type_e = 'EXTERNAL'
 
-        '''
-        ocp.cost.Vx = np.zeros((ny, nx))
-        ocp.cost.Vx[:nx, :nx] = np.eye(nx)
-        ocp.cost.Vu = np.zeros((ny, nu))
-        ocp.cost.Vu[-nu:, -nu:] = np.eye(nu)
-        ocp.cost.Vx_e = np.eye(nx)
-        '''
-
         # set constraints
         
         v_limit = 1.5
@@ -188,7 +180,7 @@ class GemCarOptimizer(object):
         constraint_k = omega_limit/v_limit
 
         ocp.constraints.constr_type = 'BGH'
-
+        '''
         # define the constraints in u
         ctrl_constraint_leftupper = lambda ctrl_point: constraint_k*ctrl_point + omega_limit
         ctrl_constraint_rightlower = lambda ctrl_point: constraint_k*ctrl_point - omega_limit
@@ -215,8 +207,7 @@ class GemCarOptimizer(object):
             con_h_expr.append(con_ru)
             con_h_expr.append(con_ll)
             con_h_expr.append(con_rl)
-
-
+        
         for i in range(obs_num):
             obs_x, obs_y = obs[i, 0], obs[i, 1]
             obs_radius = obs[i, 2]
@@ -226,12 +217,12 @@ class GemCarOptimizer(object):
 
             # add to the list
             con_h_expr.append(distance)
-
+        
 
         if con_h_expr:
             ocp.model.con_h_expr = ca.vertcat(*con_h_expr)
             ocp.constraints.lh = np.zeros((len(con_h_expr),))
-            ocp.constraints.uh = 10 * np.ones((len(con_h_expr),))
+            ocp.constraints.uh = 100 * np.ones((len(con_h_expr),))
 
             #slack variable configuration:
 
@@ -242,11 +233,11 @@ class GemCarOptimizer(object):
 
 
             ns = len(con_h_expr)
-            ocp.cost.zl = 10 * np.ones((ns,)) # gradient wrt lower slack at intermediate shooting nodes (1 to N-1)
+            ocp.cost.zl = 100 * np.ones((ns,)) # gradient wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.Zl = 1 * np.ones((ns,))    # diagonal of Hessian wrt lower slack at intermediate shooting nodes (1 to N-1)
             ocp.cost.zu = 0 * np.ones((ns,))    
             ocp.cost.Zu = 1 * np.ones((ns,))  
-
+        '''
         
         # initial state **
         x_0 = np.array([0, 0, np.pi/2])
@@ -259,7 +250,7 @@ class GemCarOptimizer(object):
         ocp.solver_options.print_level = 0
         ocp.solver_options.nlp_solver_tol_eq = 1e-4
         ocp.solver_options.nlp_solver_tol_ineq = 1e-4
-        ocp.solver_options.nlp_solver_type = 'SQP_RTI' #'SQP'
+        ocp.solver_options.nlp_solver_type = 'SQP_RTI' #'SQP_RTI'
 
         # compile acados ocp
         json_file = os.path.join('./'+model.name+'_acados_ocp.json')
@@ -601,10 +592,10 @@ if __name__ == '__main__':
     [1.0, 30, 0.1]
     ])
 
-    start_x, start_y, theta = -0.0, 0.0, np.pi/2
+    start_x, start_y, theta = -4.0, 0.0, np.pi/2
 
     car_model = GemCarBsplModel()
     opt = GemCarOptimizer(m_model=car_model.model, 
-                              t_horizon=1, dt=0.05, obstacles = obstacles)
+                              t_horizon=1, dt=0.02, obstacles = obstacles)
     opt.main(start_x, start_y, theta)
     opt.mutli_init_theta

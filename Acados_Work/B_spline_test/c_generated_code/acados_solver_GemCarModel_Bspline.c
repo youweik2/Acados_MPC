@@ -514,6 +514,46 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
 
 
     /* constraints that are the same for initial and intermediate */
+    // u
+    int* idxbu = malloc(NBU * sizeof(int));
+    
+    idxbu[0] = 0;
+    idxbu[1] = 1;
+    idxbu[2] = 2;
+    idxbu[3] = 3;
+    idxbu[4] = 4;
+    idxbu[5] = 5;
+    idxbu[6] = 6;
+    idxbu[7] = 7;
+    double* lubu = calloc(2*NBU, sizeof(double));
+    double* lbu = lubu;
+    double* ubu = lubu + NBU;
+    
+    lbu[0] = -1.5;
+    ubu[0] = 1.5;
+    lbu[1] = -3;
+    ubu[1] = 3;
+    lbu[2] = -1.5;
+    ubu[2] = 1.5;
+    lbu[3] = -3;
+    ubu[3] = 3;
+    lbu[4] = -1.5;
+    ubu[4] = 1.5;
+    lbu[5] = -3;
+    ubu[5] = 3;
+    lbu[6] = -1.5;
+    ubu[6] = 1.5;
+    lbu[7] = -3;
+    ubu[7] = 3;
+
+    for (int i = 0; i < N; i++)
+    {
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "idxbu", idxbu);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lbu", lbu);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "ubu", ubu);
+    }
+    free(idxbu);
+    free(lubu);
 
 
 
@@ -522,6 +562,31 @@ void GemCarModel_Bspline_acados_create_5_set_nlp_in(GemCarModel_Bspline_solver_c
 
 
 
+    // x
+    int* idxbx = malloc(NBX * sizeof(int));
+    
+    idxbx[0] = 0;
+    idxbx[1] = 1;
+    idxbx[2] = 2;
+    double* lubx = calloc(2*NBX, sizeof(double));
+    double* lbx = lubx;
+    double* ubx = lubx + NBX;
+    
+    lbx[0] = -4;
+    ubx[0] = 4;
+    lbx[1] = -100;
+    ubx[1] = 100;
+    lbx[2] = -6.283185307179586;
+    ubx[2] = 6.283185307179586;
+
+    for (int i = 1; i < N; i++)
+    {
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "idxbx", idxbx);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lbx", lbx);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "ubx", ubx);
+    }
+    free(idxbx);
+    free(lubx);
 
 
 
