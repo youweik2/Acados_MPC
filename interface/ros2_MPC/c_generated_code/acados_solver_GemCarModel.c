@@ -455,7 +455,11 @@ void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const 
         cost_scaling[13] = 0.05;
         cost_scaling[14] = 0.05;
         cost_scaling[15] = 0.05;
-        cost_scaling[16] = 1;
+        cost_scaling[16] = 0.05;
+        cost_scaling[17] = 0.05;
+        cost_scaling[18] = 0.05;
+        cost_scaling[19] = 0.05;
+        cost_scaling[20] = 1;
         for (int i = 0; i <= N; i++)
         {
             ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "scaling", &cost_scaling[i]);
@@ -772,7 +776,7 @@ static void GemCarModel_acados_create_set_opts(GemCarModel_solver_capsule* capsu
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "levenberg_marquardt", &levenberg_marquardt);
 
     /* options QP solver */
-    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 16;
+    int qp_solver_cond_N;const int qp_solver_cond_N_ori = 20;
     qp_solver_cond_N = N < qp_solver_cond_N_ori ? N : qp_solver_cond_N_ori; // use the minimum value here
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_cond_N", &qp_solver_cond_N);
 

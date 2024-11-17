@@ -28,44 +28,39 @@
  * POSSIBILITY OF SUCH DAMAGE.;
  */
 
-#ifndef GemCarModel_CONSTRAINTS
-#define GemCarModel_CONSTRAINTS
+#ifndef GemCarModel_MODEL
+#define GemCarModel_MODEL
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
+/* explicit ODE */
 
+// explicit ODE
+int GemCarModel_expl_ode_fun(const real_t** arg, real_t** res, int* iw, real_t* w, void *mem);
+int GemCarModel_expl_ode_fun_work(int *, int *, int *, int *);
+const int *GemCarModel_expl_ode_fun_sparsity_in(int);
+const int *GemCarModel_expl_ode_fun_sparsity_out(int);
+int GemCarModel_expl_ode_fun_n_in(void);
+int GemCarModel_expl_ode_fun_n_out(void);
 
+// explicit forward VDE
+int GemCarModel_expl_vde_forw(const real_t** arg, real_t** res, int* iw, real_t* w, void *mem);
+int GemCarModel_expl_vde_forw_work(int *, int *, int *, int *);
+const int *GemCarModel_expl_vde_forw_sparsity_in(int);
+const int *GemCarModel_expl_vde_forw_sparsity_out(int);
+int GemCarModel_expl_vde_forw_n_in(void);
+int GemCarModel_expl_vde_forw_n_out(void);
 
-
-
-
-
-int GemCarModel_constr_h_fun_jac_uxt_zt(const real_t** arg, real_t** res, int* iw, real_t* w, void *mem);
-int GemCarModel_constr_h_fun_jac_uxt_zt_work(int *, int *, int *, int *);
-const int *GemCarModel_constr_h_fun_jac_uxt_zt_sparsity_in(int);
-const int *GemCarModel_constr_h_fun_jac_uxt_zt_sparsity_out(int);
-int GemCarModel_constr_h_fun_jac_uxt_zt_n_in(void);
-int GemCarModel_constr_h_fun_jac_uxt_zt_n_out(void);
-
-int GemCarModel_constr_h_fun(const real_t** arg, real_t** res, int* iw, real_t* w, void *mem);
-int GemCarModel_constr_h_fun_work(int *, int *, int *, int *);
-const int *GemCarModel_constr_h_fun_sparsity_in(int);
-const int *GemCarModel_constr_h_fun_sparsity_out(int);
-int GemCarModel_constr_h_fun_n_in(void);
-int GemCarModel_constr_h_fun_n_out(void);
-
-
-
-
-
-
-
-
-
-
+// explicit adjoint VDE
+int GemCarModel_expl_vde_adj(const real_t** arg, real_t** res, int* iw, real_t* w, void *mem);
+int GemCarModel_expl_vde_adj_work(int *, int *, int *, int *);
+const int *GemCarModel_expl_vde_adj_sparsity_in(int);
+const int *GemCarModel_expl_vde_adj_sparsity_out(int);
+int GemCarModel_expl_vde_adj_n_in(void);
+int GemCarModel_expl_vde_adj_n_out(void);
 
 
 
@@ -73,4 +68,4 @@ int GemCarModel_constr_h_fun_n_out(void);
 } /* extern "C" */
 #endif
 
-#endif  // GemCarModel_CONSTRAINTS
+#endif  // GemCarModel_MODEL
