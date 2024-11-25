@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="ctrl" exec="VehicleController_MPC" name="controller_node" output="screen">
+      <!-- Add more parameters if required -->
+    </node>
+</launch>

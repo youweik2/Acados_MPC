@@ -1,0 +1,7 @@
+<launch>
+    <node pkg="ctrl" exec="VehicleController" name="controller_node" output="screen">
+      <param name="acceleration" value="1.0"/>
+      <param name="steering_angle" value="0.1"/>
+      <!-- Add more parameters if required -->
+    </node>
+</launch>
