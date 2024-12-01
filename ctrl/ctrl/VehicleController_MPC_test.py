@@ -119,11 +119,14 @@ class VehicleController_MPC(Node):
         self.cord_pub = self.create_publisher(Pose2D, 'cord', 10)
         self.kal_cord_pub = self.create_publisher(Pose2D, 'kal_cord', 10)
 
+        self.declare_parameter('acceleration', 0.0)
+        self.declare_parameter('steering_angle', 0.0)
+
         # Desired control values
-        self.steering_angle = 0.0  # Steering wheel angle in radians
+        self.steering_angle = self.get_parameter('steering_angle').value  # Steering wheel angle in radians
         self.steering_speed_limit = 3.5  # Steering wheel rotation speed in radians/sec
-        self.brake_percent = 0.0    # Brake command (0.0 to 1.0)
-        self.throttle_percent = 0.0 # Throttle command (0.0 to 1.0)
+        self.acceleration = self.get_parameter('acceleration').value    # Throttle command (0.0 to 1.0)
+        self.brake = 0.0           # Brake command (0.0 to 1.0)
 
         # Initialize PACMod command messages
         self.global_cmd = GlobalCmd()
@@ -179,6 +182,9 @@ class VehicleController_MPC(Node):
         self.clock = Clock()
         self.current_time = self.clock.now()
 
+        self.mpc_interface()
+
+        # self.mpc_timer = self.create_timer(0.1, self.mpc_interface())
         self.command_timer = self.create_timer(0.1, self.publish_commands)  # 0.1 means it will be called every 0.1 seconds
         
 
@@ -270,7 +276,18 @@ class VehicleController_MPC(Node):
             self.global_cmd.ignore_override = False
 
             self.gear_cmd.command = 3  # enable forward gear
+
+            # self.brake_cmd.enable = True
+            # self.brake_cmd.clear_override  = False
+            # self.brake_cmd.clear_faults  = False
+            # self.brake_cmd.ignore_overrides = False
             self.brake_cmd.command = self.brake_percent
+            
+
+            # self.accel_cmd.enable = True
+            # self.accel_cmd.clear_override  = False
+            # self.accel_cmd.clear_faults  = False
+            # self.accel_cmd.ignore_overrides = False
             self.accel_cmd.command = self.throttle_percent
 
             self.steer_cmd.angular_position = 0.0 # radians, -: clockwise, +: counter-clockwise
@@ -283,7 +300,6 @@ class VehicleController_MPC(Node):
 
             self.gem_enable = True
         
-        # needed to enable pacmod, do not remove!
         # self.global_cmd.enable = True
         # self.global_cmd.clear_override  = False
         # self.global_cmd.ignore_override = False
@@ -303,8 +319,6 @@ class VehicleController_MPC(Node):
         kal_cord.theta = self.filter_yaw
         self.kal_cord_pub.publish(kal_cord)
 
-        self.mpc_interface()
-
         # publish
         self.accel_cmd.command = self.throttle_percent
         self.accel_pub.publish(self.accel_cmd)
@@ -318,10 +332,12 @@ class VehicleController_MPC(Node):
 
         self.global_pub.publish(self.global_cmd)
 
+
         # self.get_logger().info(
         #     f'Steering Angle: {self.steering_angle:.2f} rad, '
-        #     f'Acceleration: {self.throttle_percent:.2f}, '
-        #     f'Brake: {self.brake_percent:.2f}'
+        #     f'Acceleration: {self.acceleration:.2f}, '
+        #     f'Brake: {self.brake:.2f}, '
+        #     f'Gear: {self.gear}'
         # )
 
     def mpc_interface(self):
@@ -356,54 +372,83 @@ class VehicleController_MPC(Node):
         theta_0 = theta_real        # Save the initial theta
         U_real = np.array([0.0, 0.0]) # U_real
 
-        try:
-            # Solver
-            x_0, y_0, theta, X, U = opt.solve(x_real, y_real, theta_real)
+        x_log, y_log = [x_0], [y_0]
+        theta_log = [theta]
+        U_log = []
 
-            # target_v, target_o = U.T[0], U.T[1]
-            target_v, target_o = U[0][0], U[0][1]
-            
-            # Signal Filter
-            z, zi = signal.lfilter(b, a, [self.speed], zi=zi)
-            vel_filted.append(z) # use for plotting
+        x_real_log, y_real_log = [x_real], [y_real]
+        theta_real_log = [theta_real]
+        U_real_log = []
 
-            # PID Control
-            if z < target_v - 0.2 or z > target_v + 0.2:
-                expected_acceleration = speed_controller.get_control(
-                    self.current_time.nanoseconds, target_v - z
-                )
-                speed_controller_second.integral_error = 0.0
-            else:
-                expected_acceleration = speed_controller_second.get_control(
-                    self.current_time.nanoseconds, target_v - z
-                )
+        with tqdm(total=100, desc='cpu%', position=1) as cpubar, tqdm(total=100, desc='ram%', position=0) as rambar:
+            for i in tqdm(range(self.Epi)):
 
-            # Publish control commands
+                try:
+                    # Solver
+                    x_0, y_0, theta, X, U = opt.solve(x_real, y_real, theta_real)
 
-            self.throttle_percent, self.brake_percent = self.accel2ctrl(expected_acceleration)
-            isteer = (self.wheelbase * target_o) / (self.speed * np.pi) if abs(self.speed) > 0.05 else 0.0
-            self.steer_angle = self.front2steer(isteer)
+                    # target_v, target_o = U.T[0], U.T[1]
+                    target_v, target_o = U[0][0], U[0][1]
+                    
+                    # Signal Filter
+                    z, zi = signal.lfilter(b, a, [self.speed], zi=zi)
+                    vel_filted.append(z) # use for plotting
 
-            # self.publish_commands(brake_percent, throttle_percent, steer_angle)
-            self.publish_commands()
+                    # PID Control
+                    if z < target_v - 0.2 or z > target_v + 0.2:
+                        expected_acceleration = speed_controller.get_control(
+                            self.current_time.nanoseconds, target_v - z
+                        )
+                        speed_controller_second.integral_error = 0.0
+                    else:
+                        expected_acceleration = speed_controller_second.get_control(
+                            self.current_time.nanoseconds, target_v - z
+                        )
 
-            # Next Step
-            x_real, y_real = self.filtered_x, self.filtered_y
-            theta_real = self.angle
-            # x_real, y_real, theta_real = x_0, y_0, theta
+                    # Publish control commands
 
-            # Terminal State: Stop iff reached
+                    self.throttle_percent, self.brake_percent = self.accel2ctrl(expected_acceleration)
+                    isteer = (self.wheelbase * target_o) / (self.speed * np.pi) if abs(self.speed) > 0.05 else 0.0
+                    self.steer_angle = self.front2steer(isteer)
 
-            if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 0.1:
-                # break
-                print("reach the target", theta_0)
-                return
+                    # self.publish_commands(brake_percent, throttle_percent, steer_angle)
+                    self.publish_commands()
 
-        except RuntimeError:
-            print("Infesible", theta_0)
-            return
+                    # Next Step
+                    x_real, y_real = self.filtered_x, self.filtered_y
+                    theta_real = self.angle
+                    # x_real, y_real, theta_real = x_0, y_0, theta
 
-        print("not reach the target", theta_0)
+                    # Log and draw
+
+                    desire_ctrl = U.T[0]
+                    U_real = desire_ctrl
+                    x_log.append(x_0)
+                    y_log.append(y_0)
+                    theta_log.append(theta)
+                    U_log.append(desire_ctrl)
+
+                    x_real_log.append(x_real)
+                    y_real_log.append(y_real)
+                    theta_real_log.append(theta_real)
+                    U_real_log.append(U_real)
+
+                    # Terminal State: Stop iff reached
+
+                    if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 0.1:
+                        # break
+                        print("reach the target", theta_0)
+                        if self.plot_figures == True:
+                            self.plot_results(start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log)
+                        return [1, theta_log], x_log, y_log
+
+                except RuntimeError:
+                    print("Infesible", theta_0)
+                    if self.plot_figures == True:
+                        self.plot_results(start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log)
+                    return [0, theta_log], x_log, y_log
+
+            print("not reach the target", theta_0)
 
     def plot_results(self, start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log):
         

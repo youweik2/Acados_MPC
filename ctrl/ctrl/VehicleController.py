@@ -50,6 +50,7 @@ class VehicleController(Node):
 
         # publish point info
         self.cord_pub = self.create_publisher(Pose2D, 'cord', 10)
+        self.kal_cord_pub = self.create_publisher(Pose2D, 'kal_cord', 10)
 
         self.declare_parameter('acceleration', 0.0)
         self.declare_parameter('steering_angle', 0.0)
@@ -68,18 +69,8 @@ class VehicleController(Node):
 
         self.gear_cmd = SystemCmdInt()
         self.gear_cmd.command = 2 # SHIFT_NEUTRAL
-
         self.brake_cmd = SystemCmdFloat()
-        # self.brake_cmd.enable = False
-        # self.brake_cmd.clear_override  = True
-        # self.brake_cmd.clear_faults  = True
-        # self.brake_cmd.ignore_overrides = True
-
         self.accel_cmd = SystemCmdFloat()
-        # self.accel_cmd.enable = False
-        # self.accel_cmd.clear_override  = True
-        # self.accel_cmd.clear_faults  = True
-        # self.accel_cmd.ignore_overrides = True
 
         self.gem_enable = False
         self.pacmod_enable = True
@@ -99,6 +90,15 @@ class VehicleController(Node):
 
         self.olat = 40.09281153008717
         self.olon = -88.23607685860453
+
+        # Kalman filter initialization for x, y, yaw
+        self.kf = KalmanFilter(dim_x=3, dim_z=3)
+        self.kf.x = np.array([0.0, 0.0, 0.0])  # Initial state: [x, y, yaw]
+        self.kf.F = np.eye(3)  # State transition matrix
+        self.kf.H = np.eye(3)  # Measurement function
+        self.kf.P *= 1000.0  # Covariance matrix
+        self.kf.R = np.eye(3) * 5  # Measurement noise
+        self.kf.Q = np.eye(3) * 0.1  # Process noise
 
         self.command_timer = self.create_timer(0.1, self.publish_commands)  # 0.1 means it will be called every 0.1 seconds
     
@@ -140,25 +140,29 @@ class VehicleController(Node):
         # convert GNSS waypoints into local fixed frame reprented in x and y
         lon_wp_x, lat_wp_y = ll2xy(lat_wp, lon_wp, self.olat, self.olon)    # need to add source code to provide support
         return lon_wp_x, lat_wp_y
-    
-    def kalman_xy(self):
-        self.wps_to_local_xy(self.lon, self.lat)
 
     def get_gem_state(self):
         # vehicle gnss heading (yaw) in degrees
         # vehicle x, y position in fixed local frame, in meters
         # reference point is located at the center of GNSS antennas
-        local_x_curr, local_y_curr = self.wps_to_local_xy(self.lon, self.lat)
+        local_x_curr, local_y_curr = self.wps2xy(self.lon, self.lat)
 
         # heading to yaw (degrees to radians)
         # heading is calculated from two GNSS antennas
-        curr_yaw = self.heading_to_yaw(self.heading) 
+        self.curr_yaw = self.heading2yaw(self.heading) 
 
         # reference point is located at the center of rear axle
-        curr_x = local_x_curr - self.offset * np.cos(curr_yaw)
-        curr_y = local_y_curr - self.offset * np.sin(curr_yaw)
+        self.curr_x = local_x_curr - self.offset * np.cos(self.curr_yaw)
+        self.curr_y = local_y_curr - self.offset * np.sin(self.curr_yaw)
 
-        return round(curr_x, 3), round(curr_y, 3), round(curr_yaw, 4)
+    def kalman_filter(self):
+        # Kalman filter update
+        z = np.array([self.curr_x, self.curr_y, self.curr_yaw])  # Measurement
+        self.kf.predict()
+        self.kf.update(z)
+
+        # Get the filtered state
+        self.filtered_x, self.filtered_y, self.filtered_yaw = self.kf.x
 
     def publish_commands(self):
         if not self.gem_enable and self.pacmod_enable:
@@ -169,18 +173,7 @@ class VehicleController(Node):
             self.global_cmd.ignore_override = False
 
             self.gear_cmd.command = 3  # enable forward gear
-
-            # self.brake_cmd.enable = True
-            # self.brake_cmd.clear_override  = False
-            # self.brake_cmd.clear_faults  = False
-            # self.brake_cmd.ignore_overrides = False
             self.brake_cmd.command = 0.0
-            
-
-            # self.accel_cmd.enable = True
-            # self.accel_cmd.clear_override  = False
-            # self.accel_cmd.clear_faults  = False
-            # self.accel_cmd.ignore_overrides = False
             self.accel_cmd.command = 0.0
 
             self.global_pub.publish(self.global_cmd)
@@ -196,11 +189,18 @@ class VehicleController(Node):
 
         # Cord command
         cord = Pose2D()
-        curr_x, curr_y, curr_yaw = self.get_gem_state()
-        cord.x = curr_x
-        cord.y = curr_y
-        cord.theta = curr_yaw
+        self.get_gem_state()
+        cord.x = self.curr_x
+        cord.y = self.curr_y
+        cord.theta = self.curr_yaw
         self.cord_pub.publish(cord)
+
+        kal_cord = Pose2D()
+        self.kalman_filter()
+        kal_cord.x = self.filter_x
+        kal_cord.y = self.filter_y
+        kal_cord.theta = self.filter_yaw
+        self.kal_cord_pub.publish(kal_cord)
 
         # for testing
         self.accel_cmd.command = self.acceleration
