@@ -483,7 +483,7 @@ void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const 
     W_0[0+(NY0) * 0] = 1;
     W_0[1+(NY0) * 1] = 5;
     W_0[2+(NY0) * 2] = 0.01;
-    W_0[3+(NY0) * 3] = 0.5;
+    W_0[3+(NY0) * 3] = 0.05;
     W_0[4+(NY0) * 4] = 0.05;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, 0, "W", W_0);
     free(W_0);
@@ -500,7 +500,7 @@ void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const 
     W[0+(NY) * 0] = 1;
     W[1+(NY) * 1] = 5;
     W[2+(NY) * 2] = 0.01;
-    W[3+(NY) * 3] = 0.5;
+    W[3+(NY) * 3] = 0.05;
     W[4+(NY) * 4] = 0.05;
 
     for (int i = 1; i < N; i++)
@@ -604,8 +604,8 @@ void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const 
     double* ubu = lubu + NBU;
     lbu[0] = -1.5;
     ubu[0] = 1.5;
-    lbu[1] = -1;
-    ubu[1] = 1;
+    lbu[1] = -0.5235987755982988;
+    ubu[1] = 0.5235987755982988;
 
     for (int i = 0; i < N; i++)
     {

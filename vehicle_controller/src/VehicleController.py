@@ -104,8 +104,7 @@ class PID:
 class VehicleController():
     def __init__(self):
 
-        self.rate       = rospy.Rate(10)
-
+        self.rate       = rospy.Rate(20)
         self.look_ahead = 4
         self.wheelbase  = 2.57 # meters
         self.offset     = 1.26 # meters
@@ -201,8 +200,12 @@ class VehicleController():
         self.speed = 0.0
         self.steer_angle = 0.0
         self.steer_delta = 0.0
-        self.arrived = False
         self.filtered_x, self.filtered_y, self.filtered_yaw = 0.0, 0.0, 0.0
+
+        # log info
+        self.x_log, self.y_log, self.theta_log = [], [], []
+        self.x_real_log, self.y_real_log = [], []
+        self.o_log, self.a_log = [], []
 
     def ins_callback(self, msg):
         self.heading = round(msg.heading, 6)
@@ -272,7 +275,7 @@ class VehicleController():
 
     def start_loop(self):
         
-        while not rospy.is_shutdown() and not self.arrived:
+        while not rospy.is_shutdown():
 
             if (self.gem_enable == False):
                 if(self.pacmod_enable == True):
@@ -324,9 +327,7 @@ class VehicleController():
             self.kal_cord_pub.publish(kal_cord)
             
             self.mpc_interface()
-
             self.rate.sleep()
-
 
     def publish_commands(self):
 
@@ -342,7 +343,6 @@ class VehicleController():
         self.accel_pub.publish(self.accel_cmd)
         self.steer_pub.publish(self.steer_cmd)
         self.turn_pub.publish(self.turn_cmd)
-
 
     def mpc_interface(self):
         
@@ -365,87 +365,79 @@ class VehicleController():
         zi = signal.lfilter_zi(b, a) * self.speed
         
         # initial State
-        x_real, y_real = self.filtered_x, self.filtered_y
+        x_real, y_real, vel_real = self.filtered_x, self.filtered_y, self.speed
         theta_real = self.angle
-        # x_real, y_real= 0, 0
-        # theta_real = np.pi/2
+             
+        x_0, y_0, theta_0 = x_real, y_real, theta_real  # Save the initial theta
 
-        start_x, start_y = x_real, y_real                
-        x_0, y_0, theta = x_real, y_real, theta_real
-        theta_0 = theta_real        # Save the initial theta
-        U_real = np.array([0.0, 0.0]) # U_real
+        # Solver
+        x_0, y_0, theta_0, vel, a_0, o_0 = opt.solve(x_real, y_real, theta_real, vel_real)
 
-        try:
-            # Solver
-            x_0, y_0, theta, X, U = opt.solve(x_real, y_real, theta_real)
+        x_real, y_real, theta_real, vel_real = x_0, y_0, theta_0, vel
+        target_a, target_o = a_0, o_0
 
-            # target_v, target_o = U.T[0], U.T[1]
-            target_v, target_o = U[0][0], U[0][1]
-            
-            # Signal Filter
-            z, zi = signal.lfilter(b, a, [self.speed], zi=zi)
-            vel_filted.append(z) # use for plotting
+        self.x_log.append(x_0)
+        self.y_log.append(y_0)
+        self.theta_log.append(theta_0)
+        self.x_real_log.append(x_real)
+        self.y_real_log.append(y_real)
+        self.a_log.append(a_0)
+        self.o_log.append(o_0)
+        
+        # Signal Filter
+        z, zi = signal.lfilter(b, a, [self.speed], zi=zi)
+        vel_filted.append(z) # use for plotting
 
-            current_time = rospy.Time.now()
+        current_time = rospy.get_time()
 
-            # PID Control
-            if z < target_v - 0.2 or z > target_v + 0.2:
-                expected_acceleration = speed_controller.get_control(
-                    current_time.to_nsec(), target_v - z
-                )
-                speed_controller_second.integral_error = 0.0
-            else:
-                expected_acceleration = speed_controller_second.get_control(
-                    current_time.to_nsec(), target_v - z
-                )
+        # PID Control
+        expected_acceleration = speed_controller.get_control(current_time, target_a - z)
 
-            # Publish control commands
-            self.accel_percent = expected_acceleration
-            # self.throttle_percent, self.brake_percent = self.accel2ctrl(expected_acceleration)
-            
-            deltai = atan((self.wheelbase * target_o * self.dt) / (self.speed * self.dt)) if abs(self.speed) > 0.05 else 0.0
-            self.delta = np.degrees(round(np.clip(deltai, -0.61, 0.61), 3))
-            self.steer_angle = self.front2steer(self.steer_delta)
+        # Publish control commands
+        self.accel_percent = expected_acceleration
+        # self.throttle_percent, self.brake_percent = self.accel2ctrl(expected_acceleration)
+        
+        self.delta = np.degrees(round(np.clip(target_o, -0.61, 0.61), 3))
+        self.steer_angle = self.front2steer(self.steer_delta)
 
-            # self.publish_commands(brake_percent, throttle_percent, steer_angle)
-            self.publish_commands()
+        # self.publish_commands(brake_percent, throttle_percent, steer_angle)
+        self.publish_commands()
 
-            # Next Step
-            x_real, y_real = self.filtered_x, self.filtered_y
-            theta_real = self.angle
-            # x_real, y_real, theta_real = x_0, y_0, theta
+        # Terminal State: Stop iff reached
+        if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 0.25:
+            # break
+            rospy.loginfo("Stopping the node...")
+            rospy.signal_shutdown("Reach the target")
 
-            # Terminal State: Stop iff reached
+        # boundary condition
+        if x_0 < -10 or x_0 > 10 or y_0 > 50 or y_0 < -50:
+            # break
+            rospy.loginfo("Stopping the node...")
+            rospy.signal_shutdown("Exceed the bounds")
 
-            if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 0.5:
-                # break
-                self.arrived = True
-                print("reach the target", theta_0)
-                return
-
-        except RuntimeError:
-            print("Infesible", theta_0)
-            return
-
-        print("not reach the target", theta_0)
-
-    def plot_results(self, start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log):
+    # plot function
+    def plot_results(self, start_x, start_y, theta_log, a_log, x_log, y_log, x_real_log, y_real_log, o_log):
         
         plt.figure()
-        tt = np.arange(0, (len(U_log)), 1)*self.dt
-        t = np.arange(0, (len(theta_log)), 1)*self.dt
-        plt.plot(tt, U_log, 'r-', label='desired U')
-        plt.plot(tt, U_real_log, 'b-', label='U_real', linestyle='--')
+        a = np.arange(0, (len(a_log)), 1)*self.dt
+        plt.plot(a, a_log, 'r-', label='desired a')
         plt.xlabel('time')
-        plt.ylabel('U')
+        plt.ylabel('value')
         plt.legend()
         plt.grid(True)
         plt.show()
 
-        # Plot for angles
-        plt.plot(t, theta_log, 'r-', label='desired theta')
+        v = np.arange(0, (len(o_log)), 1)*self.dt
+        plt.plot(v, o_log, 'r-', label='desired theta')
+        plt.xlabel('time')
+        plt.ylabel('value')
+        plt.legend()
+        plt.grid(True)
+        plt.show()        
 
-        # plt.plot(t, theta_real_log, 'b-', label='theta_real')
+        # Plot for angles
+        t = np.arange(0, (len(theta_log)), 1)*self.dt
+        plt.plot(t, theta_log, 'r-', label='desired theta')
         plt.xlabel('time')
         plt.ylabel('theta')
         plt.legend()
@@ -483,6 +475,7 @@ class VehicleController():
 
 def main():
     rospy.init_node('mpc_node', anonymous=True)
+    rospy.loginfo("MPC Node Start")
     controller = VehicleController()
 
     try:

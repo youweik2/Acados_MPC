@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="vehicle_controller" type="VehicleController.py" name="vehicle_controller" output="screen"/>
+</launch>

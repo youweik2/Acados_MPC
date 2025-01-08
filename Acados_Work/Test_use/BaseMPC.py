@@ -92,7 +92,7 @@ class GemCarOptimizer(object):
 
         # cost type
         Q = np.array([[1.0, 0.0, 0.0], [0.0, 5.0, 0.0], [0.0, 0.0, 0.01]])
-        R = np.array([[0.5, 0.0], [0.0, 0.05]])
+        R = np.array([[0.05, 0.0], [0.0, 0.05]])
 
         ocp.cost.cost_type = 'NONLINEAR_LS'
         ocp.cost.cost_type_e = 'NONLINEAR_LS'
@@ -209,10 +209,6 @@ class GemCarOptimizer(object):
         x0[1] = y_real
         x0[2] = theta_real
 
-        x01 = np.array([x_real,y_real,theta_real])
-        print("x01",x01)
-        print("x00",x0)
-
         xs = np.zeros(3)
         xs[0] = self.target_x
         xs[1] = self.target_y
@@ -248,25 +244,38 @@ class GemCarOptimizer(object):
         next_x = simX[1, 0]
         next_y = simX[1, 1]
         next_theta = simX[1, 2]
+        cur_v = simU[0, 0]
+        cur_o = simU[0, 1]
 
-        return next_x, next_y, next_theta, simX, simU
+        return next_x, next_y, next_theta, cur_v, cur_o
 
 
     # plot function for case 2 --unchanged
-    def plot_results(self, start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log):
+    def plot_results(self, start_x, start_y, theta_log, v_log, x_log, y_log, x_real_log, y_real_log, o_log):
         
         plt.figure()
-        tt = np.arange(0, (len(U_log)), 1)*self.dt
-        t = np.arange(0, (len(theta_log)), 1)*self.dt
-        plt.plot(tt, U_log, 'r-', label='desired U')
-        plt.plot(tt, U_real_log, 'b-', label='U_real', linestyle='--')
+        v = np.arange(0, (len(v_log)), 1)*self.dt
+        
+        plt.plot(v, v_log, 'r-', label='v')
         plt.xlabel('time')
         plt.ylabel('U')
         plt.legend()
         plt.grid(True)
         plt.show()
 
+
+        o = np.arange(0, (len(o_log)), 1)*self.dt
+        
+        plt.plot(o, o_log, 'r-', label='o')
+        plt.xlabel('time')
+        plt.ylabel('value')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+
         # Plot for angles
+        t = np.arange(0, (len(theta_log)), 1)*self.dt
         plt.plot(t, theta_log, 'r-', label='desired theta')
 
         # plt.plot(t, theta_real_log, 'b-', label='theta_real')
@@ -316,52 +325,49 @@ class GemCarOptimizer(object):
         x_0, y_0, theta = start_x, start_y, theta_init
         x_real, y_real, theta_real = start_x, start_y, theta_init
         theta_0 = theta_init            # Save the initial theta
-        U_real = np.array([0.0, 0.0])
 
         x_log, y_log = [x_0], [y_0]
         theta_log = [theta]
-        U_log = []
+        v_log = []
 
         x_real_log, y_real_log = [x_real], [y_real]
         theta_real_log = [theta_real]
-        U_real_log = []
+        o_log = []
 
         with tqdm(total=100, desc='cpu%', position=1) as cpubar, tqdm(total=100, desc='ram%', position=0) as rambar:
             for i in tqdm(range(self.Epi)):
 
                 try:
-                    x_0, y_0, theta, X, U = self.solve(x_real, y_real, theta_real)
+                    x_0, y_0, theta, v0, o0 = self.solve(x_real, y_real, theta_real)
 
                     x_real, y_real, theta_real = x_0, y_0, theta
-                    desire_ctrl = U.T[0]
-                    U_real = desire_ctrl
                     
                     x_log.append(x_0)
                     y_log.append(y_0)
                     theta_log.append(theta)
-                    U_log.append(desire_ctrl)
+                    v_log.append(v0)
 
                     x_real_log.append(x_real)
                     y_real_log.append(y_real)
                     theta_real_log.append(theta_real)
-                    U_real_log.append(U_real)
+                    o_log.append(o0)
 
                     if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 0.1:
                         # break
                         print("reach the target", theta_0)
                         if self.plot_figures == True:
-                            self.plot_results(start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log)
+                            self.plot_results(start_x, start_y, theta_log, v_log, x_log, y_log, x_real_log, y_real_log, o_log)
                         return [1, theta_log], x_log, y_log
 
                 except RuntimeError:
                     print("Infesible", theta_0)
                     if self.plot_figures == True:
-                        self.plot_results(start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log)
+                        self.plot_results(start_x, start_y, theta_log, v_log, x_log, y_log, x_real_log, y_real_log, o_log)
                     return [0, theta_log], x_log, y_log
 
             print("not reach the target", theta_0)
             if self.plot_figures == True:
-                self.plot_results(start_x, start_y, theta_log, U_log, x_log, y_log, x_real_log, y_real_log, U_real_log, theta_real_log)
+                self.plot_results(start_x, start_y, theta_log, v_log, x_log, y_log, x_real_log, y_real_log, o_log)
             return [0, theta_log], x_log, y_log
 
     
