@@ -23,7 +23,6 @@ import pickle
 import matplotlib.pyplot as plt
 from ros1_MPC.BaseMPC import GemCarOptimizer
 from ros1_MPC.GemCar import GemCarModel
-from tqdm import tqdm
 
 def mdeglat(lat):
     latrad = lat*2.0*pi/360.0
