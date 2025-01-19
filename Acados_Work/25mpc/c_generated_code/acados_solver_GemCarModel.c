@@ -546,10 +546,10 @@ void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const 
     double* zl = zlumem+NS*2;
     double* zu = zlumem+NS*3;
     // change only the non-zero elements:
-    Zl[0] = 10;
-    Zu[0] = 10;
-    zl[0] = 1000;
-    zu[0] = 1000;
+    Zl[0] = 1000;
+    Zu[0] = 1000;
+    zl[0] = 100000;
+    zu[0] = 100000;
 
     for (int i = 1; i < N; i++)
     {

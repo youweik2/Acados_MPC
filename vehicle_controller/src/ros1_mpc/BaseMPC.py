@@ -41,8 +41,8 @@ class GemCarOptimizer(object):
         self.target_velocity = 5.0
 
         # Obstacle set here
-        self.circle_obstacles_1 = {'x': 0, 'y': 20, 'r': 6.0}
-        self.circle_obstacles_2 = {'x': -1, 'y': 25, 'r': 3.0}
+        self.circle_obstacles_1 = {'x': 0, 'y': 20, 'r': 4.0}
+        self.circle_obstacles_2 = {'x': -1, 'y': 25, 'r': 4.0}
         self.circle_obstacles_3 = {'x': 1, 'y': 30, 'r': 4.0}
 
         self.plot_figures = True

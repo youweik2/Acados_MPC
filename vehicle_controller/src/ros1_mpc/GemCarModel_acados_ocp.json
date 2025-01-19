@@ -1,7 +1,7 @@
 {
     "acados_include_path": "/home/auto/acados/include",
     "acados_lib_path": "/home/auto/acados/lib",
-    "code_export_directory": "/home/auto/acrl/25mpc/c_generated_code",
+    "code_export_directory": "/home/auto/acrl/Acados_MPC/vehicle_controller/src/ros1_mpc/c_generated_code",
     "constraints": {
         "C": [],
         "C_e": [],
