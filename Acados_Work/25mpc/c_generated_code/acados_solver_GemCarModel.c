@@ -546,10 +546,42 @@ void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const 
     double* zl = zlumem+NS*2;
     double* zu = zlumem+NS*3;
     // change only the non-zero elements:
-    Zl[0] = 1000;
-    Zu[0] = 1000;
-    zl[0] = 100000;
-    zu[0] = 100000;
+    Zl[0] = 10;
+    Zl[1] = 10;
+    Zl[2] = 10;
+    Zl[3] = 10;
+    Zl[4] = 10;
+    Zl[5] = 10;
+    Zl[6] = 10;
+    Zl[7] = 10;
+    Zl[8] = 10;
+    Zu[0] = 10;
+    Zu[1] = 10;
+    Zu[2] = 10;
+    Zu[3] = 10;
+    Zu[4] = 10;
+    Zu[5] = 10;
+    Zu[6] = 10;
+    Zu[7] = 10;
+    Zu[8] = 10;
+    zl[0] = 1000;
+    zl[1] = 1000;
+    zl[2] = 1000;
+    zl[3] = 1000;
+    zl[4] = 1000;
+    zl[5] = 1000;
+    zl[6] = 1000;
+    zl[7] = 1000;
+    zl[8] = 1000;
+    zu[0] = 1000;
+    zu[1] = 1000;
+    zu[2] = 1000;
+    zu[3] = 1000;
+    zu[4] = 1000;
+    zu[5] = 1000;
+    zu[6] = 1000;
+    zu[7] = 1000;
+    zu[8] = 1000;
 
     for (int i = 1; i < N; i++)
     {
@@ -626,6 +658,14 @@ void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const 
     // set up soft bounds for nonlinear constraints
     int* idxsh = malloc(NSH * sizeof(int));
     idxsh[0] = 0;
+    idxsh[1] = 1;
+    idxsh[2] = 2;
+    idxsh[3] = 3;
+    idxsh[4] = 4;
+    idxsh[5] = 5;
+    idxsh[6] = 6;
+    idxsh[7] = 7;
+    idxsh[8] = 8;
     double* lush = calloc(2*NSH, sizeof(double));
     double* lsh = lush;
     double* ush = lush + NSH;
@@ -675,6 +715,14 @@ void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const 
     double* lh = luh;
     double* uh = luh + NH;
     uh[0] = 100;
+    uh[1] = 100;
+    uh[2] = 100;
+    uh[3] = 100;
+    uh[4] = 100;
+    uh[5] = 100;
+    uh[6] = 100;
+    uh[7] = 100;
+    uh[8] = 100;
 
     for (int i = 1; i < N; i++)
     {

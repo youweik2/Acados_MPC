@@ -46,7 +46,7 @@
 #define GEMCARMODEL_NBU    2
 #define GEMCARMODEL_NSBX   0
 #define GEMCARMODEL_NSBU   0
-#define GEMCARMODEL_NSH    1
+#define GEMCARMODEL_NSH    9
 #define GEMCARMODEL_NSH0   0
 #define GEMCARMODEL_NSG    0
 #define GEMCARMODEL_NSPHI  0
@@ -55,7 +55,7 @@
 #define GEMCARMODEL_NSPHIN 0
 #define GEMCARMODEL_NSPHI0 0
 #define GEMCARMODEL_NSBXN  0
-#define GEMCARMODEL_NS     1
+#define GEMCARMODEL_NS     9
 #define GEMCARMODEL_NS0    0
 #define GEMCARMODEL_NSN    0
 #define GEMCARMODEL_NG     0
@@ -65,7 +65,7 @@
 #define GEMCARMODEL_NY     6
 #define GEMCARMODEL_NYN    4
 #define GEMCARMODEL_N      20
-#define GEMCARMODEL_NH     1
+#define GEMCARMODEL_NH     9
 #define GEMCARMODEL_NHN    0
 #define GEMCARMODEL_NH0    0
 #define GEMCARMODEL_NPHI0  0
