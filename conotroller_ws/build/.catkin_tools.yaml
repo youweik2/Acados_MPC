@@ -1,0 +1,6 @@
+devel_space: /home/gem/ws/devel
+install: false
+install_space: /home/gem/ws/install
+profile: default
+source_space: /home/gem/ws/src
+workspace: /home/gem/ws

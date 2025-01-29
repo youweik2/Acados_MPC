@@ -39,7 +39,7 @@
 #define GEMCARMODEL_NX     4
 #define GEMCARMODEL_NZ     0
 #define GEMCARMODEL_NU     2
-#define GEMCARMODEL_NP     2500
+#define GEMCARMODEL_NP     627
 #define GEMCARMODEL_NP_GLOBAL     0
 #define GEMCARMODEL_NBX    4
 #define GEMCARMODEL_NBX0   4

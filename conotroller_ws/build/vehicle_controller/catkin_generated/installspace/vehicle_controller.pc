@@ -1,0 +1,8 @@
+prefix=/home/gem/ws/install
+
+Name: vehicle_controller
+Description: Description of vehicle_controller
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

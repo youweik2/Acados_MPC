@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/gem/ws/devel/.private/vehicle_controller/setup.sh

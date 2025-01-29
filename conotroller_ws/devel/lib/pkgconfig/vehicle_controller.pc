@@ -1,0 +1,1 @@
+/home/gem/ws/devel/.private/vehicle_controller/lib/pkgconfig/vehicle_controller.pc

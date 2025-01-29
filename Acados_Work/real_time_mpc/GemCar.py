@@ -12,6 +12,8 @@ class GemCarModel(object):
         model = AcadosModel()
         constraint = ca.types.SimpleNamespace()
         length = 2.565
+        wpg = 25 # lidar width (per grid)
+        hpg = 25 # lidar width (per )
 
         # control inputs
         a = ca.SX.sym('accel')
@@ -36,7 +38,9 @@ class GemCarModel(object):
         f_impl = x_dot - f(states, controls)
 
         # grid map setting
-        grid = ca.SX.sym('grid', 50, 50)
+        grid = ca.SX.sym('grid', wpg*hpg)
+        cx = ca.SX.sym('cx')
+        cy = ca.SX.sym('cy')
 
         # other settings
         model.f_expl_expr = f(states, controls)
@@ -44,7 +48,7 @@ class GemCarModel(object):
         model.x = states
         model.xdot = x_dot
         model.u = controls
-        model.p = ca.reshape(grid, 50 * 50, 1) 
+        model.p = ca.vcat([grid, cx, cy])
         model.name = 'GemCarModel'
 
         # constraints
@@ -56,5 +60,3 @@ class GemCarModel(object):
 
         self.model = model
         self.constraint = constraint
-
-        self.grid = grid

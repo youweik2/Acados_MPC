@@ -992,7 +992,7 @@ int GemCarModel_acados_update_params(GemCarModel_solver_capsule* capsule, int st
 {
     int solver_status = 0;
 
-    int casadi_np = 2500;
+    int casadi_np = 627;
     if (casadi_np != np) {
         printf("acados_update_params: trying to set %i parameters for external functions."
             " External function has %i parameters. Exiting.\n", np, casadi_np);

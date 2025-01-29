@@ -1,0 +1,1 @@
+/home/gem/ws/devel/.private/vehicle_controller/share/vehicle_controller/cmake/vehicle_controllerConfig-version.cmake
