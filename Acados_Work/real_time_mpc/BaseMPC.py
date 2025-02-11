@@ -26,8 +26,8 @@ class GemCarOptimizer(object):
         model = m_model
 
         # Grid dimensions
-        self.wpg = 25
-        self.hpg = 25
+        self.wpg = 20
+        self.hpg = 22
         self.rtg = grid  # Real-time grid
 
         # Basic info
@@ -37,7 +37,7 @@ class GemCarOptimizer(object):
 
         # Car info
         self.car_width = 1.5
-        self.car_length = 2.7
+        self.car_length = 2.565
         self.Epi = 3000
 
         self.target_x = 0.0
@@ -65,7 +65,7 @@ class GemCarOptimizer(object):
         ocp.acados_include_path = acados_source_path + '/include'
         ocp.acados_lib_path = acados_source_path + '/lib'
         ocp.model = model
-        ocp.solver_options.N_horizon = self.N
+        ocp.dims.N = self.N
         ocp.solver_options.tf = self.T
 
         # Initialize parameters
@@ -154,36 +154,39 @@ class GemCarOptimizer(object):
         self.solver = AcadosOcpSolver(ocp, json_file=json_file)
         self.integrator = AcadosSimSolver(ocp, json_file=json_file)
 
+
     def get_gvalue(self, cur_x, cur_y, cx, cy, grid):
         h = 0.4
 
+        # Reshape the flattened grid into a 50x50 symbolic matrix
+        gridmap = ca.reshape(grid, self.hpg, self.wpg)
+
         # Compute symbolic grid indices
-        grid_x = ca.floor((cur_x + cx) / h)
-        grid_y = ca.floor((cur_y + cy) / h)
+        grid_x = ca.fmax(ca.floor((cur_x + cx) / h), 0)
+        grid_y = ca.fmax(ca.floor((cur_y + cy) / h), 0)
 
         # Handle boundary cases symbolically
-        grid_x = ca.if_else(grid_x < 0, 0, ca.if_else(grid_x >= self.wpg, self.wpg - 1, grid_x))
+        grid_x = ca.if_else(grid_x < 0, 0, ca.if_else(grid_x >= self.wpg, self.hpg - 1, grid_x))
         grid_x1 = ca.if_else(grid_x + 1 >= self.wpg, self.wpg - 1, grid_x + 1)
-        grid_y = ca.if_else(grid_y < 0, 0, ca.if_else(grid_y >= self.hpg, self.hpg - 1, grid_y))
-        grid_y1 = ca.if_else(grid_y + 1 >= self.hpg, self.hpg - 1, grid_y + 1)
-
-        # Compute grid value indices
-        def get_value_at_index(grid, x, y):
-            idx = y * self.wpg + x
-            value = 0
-            for i in range(self.wpg * self.hpg):
-                value += ca.if_else(idx == i, grid[i], 0)
-            return value
-
-        def find_gvalue(grid, x, y):
-            value = ca.if_else(ca.logic_and(ca.logic_and(x < 0, x >= self.wpg), ca.logic_and(y < 0, y >= self.hpg)), 50, get_value_at_index(grid, x, y))
-            return value
+        grid_y = ca.if_else(grid_y < 0, 0, ca.if_else(grid_y >= self.hpg, self.wpg - 1, grid_y))
+        grid_y1 = ca.if_else(grid_y + 1 >= self.wpg, self.hpg - 1, grid_y + 1)
         
-        # Fetch grid values
-        gxy = find_gvalue(grid, grid_x, grid_y)
-        gxpy = find_gvalue(grid, grid_x + 1, grid_y)
-        gxyp = find_gvalue(grid, grid_x, grid_y + 1)
-        gxpyp = find_gvalue(grid, grid_x + 1, grid_y + 1)
+        def symbolic_lookup(matrix, row_idx, col_idx):
+            result = 0
+            for i in range(self.hpg):
+                for j in range(self.wpg):
+                    result += ca.if_else(
+                        ca.logic_and(row_idx == i, col_idx == j),
+                        matrix[i, j],
+                        0
+                    )
+            return result
+        
+        # Access grid values using the updated symbolic_lookup
+        gxy = symbolic_lookup(gridmap, grid_x, grid_y)
+        gxpy = symbolic_lookup(gridmap, grid_x1, grid_y)
+        gxyp = symbolic_lookup(gridmap, grid_x, grid_y1)
+        gxpyp = symbolic_lookup(gridmap, grid_x1, grid_y1)
 
         # Compute weights
         I_x = ca.floor((cur_x + cx) / h)
@@ -196,7 +199,7 @@ class GemCarOptimizer(object):
         m_g = ca.horzcat(ca.vertcat(gxy, gxpy), ca.vertcat(gxyp, gxpyp))
         m_y = ca.vertcat(1 - R_y, R_y)
 
-        # Compute the interpolated value
+        # Compute the value
         g_value = ca.mtimes([m_x.T, m_g, m_y])
         return g_value
 
@@ -345,7 +348,7 @@ class GemCarOptimizer(object):
                     y_real_log.append(y_real)
                     o_log.append(o_0)
 
-                    if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 1:
+                    if (x_0 - self.target_x) ** 2 + (y_0 - self.target_y) ** 2 < 2:
                         # break
                         print("reach the target", theta)
                         if self.plot_figures == True:
@@ -378,10 +381,10 @@ if __name__ == '__main__':
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -395,26 +398,9 @@ if __name__ == '__main__':
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             ]
 
+    grid = np.array(grid)
 
-    grid_1d = [0, 100, 100, 100, 100, 100, 100, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, -1, -1,\
-               -1, 0, 100, -1, 100, 100, 100, 100, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, -1, -1, -1, \
-               0, 100, 0, 0, 0, 100, 100, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 100, 0, -1, -1, 0, 0, 0, 0, \
-                0, 0, 100, -1, 100, 100, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, -1, 0, 100, \
-                100, 100, 0, 0, 0, 0, 0, 0, 100, 0, 100, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 100, 100, 100, 0, 0,\
-                 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, \
-                -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, \
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,\
-                0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, \
-                0, 0, 0, 0, 0, 0, 0, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, \
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,\
-                0, 0, -1, 0, 0, 0, 0, 0, 0, 100, 100, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, \
-                100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, \
-                100, 0, -1, 0, 100, 100, 100, 100, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 100, 100, 100, \
-                -1, -1, 0, 100, 100, 0, 100, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, -1, -1, -1, \
-                -1, -1, -1, 100, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, \
-                -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
-    
-    print(grid_1d.shape)
+    grid_1d = grid.reshape(-1)
 
     start_x, start_y, theta, vel = 0.0, 0.0, np.pi/2, 0.0
 

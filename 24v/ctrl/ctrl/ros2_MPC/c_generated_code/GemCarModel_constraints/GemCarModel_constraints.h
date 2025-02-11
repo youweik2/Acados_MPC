@@ -65,10 +65,6 @@ int GemCarModel_constr_h_fun_n_out(void);
 
 
 
-
-
-
-
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

@@ -40,7 +40,6 @@
 #define GEMCARMODEL_NZ     0
 #define GEMCARMODEL_NU     2
 #define GEMCARMODEL_NP     0
-#define GEMCARMODEL_NP_GLOBAL     0
 #define GEMCARMODEL_NBX    3
 #define GEMCARMODEL_NBX0   3
 #define GEMCARMODEL_NBU    2
@@ -95,37 +94,36 @@ typedef struct GemCarModel_solver_capsule
     unsigned int nlp_np;
 
     /* external functions */
-
     // dynamics
 
-    external_function_external_param_casadi *expl_vde_forw;
-    external_function_external_param_casadi *expl_ode_fun;
-    external_function_external_param_casadi *expl_vde_adj;
+    external_function_param_casadi *forw_vde_casadi;
+    external_function_param_casadi *expl_ode_fun;
 
 
 
 
     // cost
 
-    external_function_external_param_casadi *cost_y_fun;
-    external_function_external_param_casadi *cost_y_fun_jac_ut_xt;
+    external_function_param_casadi *cost_y_fun;
+    external_function_param_casadi *cost_y_fun_jac_ut_xt;
+    external_function_param_casadi *cost_y_hess;
 
 
 
-    external_function_external_param_casadi cost_y_0_fun;
-    external_function_external_param_casadi cost_y_0_fun_jac_ut_xt;
+    external_function_param_casadi cost_y_0_fun;
+    external_function_param_casadi cost_y_0_fun_jac_ut_xt;
+    external_function_param_casadi cost_y_0_hess;
 
 
 
-    external_function_external_param_casadi cost_y_e_fun;
-    external_function_external_param_casadi cost_y_e_fun_jac_ut_xt;
+    external_function_param_casadi cost_y_e_fun;
+    external_function_param_casadi cost_y_e_fun_jac_ut_xt;
+    external_function_param_casadi cost_y_e_hess;
 
 
     // constraints
-    external_function_external_param_casadi *nl_constr_h_fun_jac;
-    external_function_external_param_casadi *nl_constr_h_fun;
-
-
+    external_function_param_casadi *nl_constr_h_fun_jac;
+    external_function_param_casadi *nl_constr_h_fun;
 
 
 
@@ -159,19 +157,9 @@ ACADOS_SYMBOL_EXPORT int GemCarModel_acados_update_time_steps(GemCarModel_solver
 ACADOS_SYMBOL_EXPORT int GemCarModel_acados_update_qp_solver_cond_N(GemCarModel_solver_capsule * capsule, int qp_solver_cond_N);
 ACADOS_SYMBOL_EXPORT int GemCarModel_acados_update_params(GemCarModel_solver_capsule * capsule, int stage, double *value, int np);
 ACADOS_SYMBOL_EXPORT int GemCarModel_acados_update_params_sparse(GemCarModel_solver_capsule * capsule, int stage, int *idx, double *p, int n_update);
-ACADOS_SYMBOL_EXPORT int GemCarModel_acados_set_p_global_and_precompute_dependencies(GemCarModel_solver_capsule* capsule, double* data, int data_len);
 
 ACADOS_SYMBOL_EXPORT int GemCarModel_acados_solve(GemCarModel_solver_capsule * capsule);
-
 ACADOS_SYMBOL_EXPORT void GemCarModel_acados_batch_solve(GemCarModel_solver_capsule ** capsules, int N_batch);
-
-ACADOS_SYMBOL_EXPORT void GemCarModel_acados_batch_set_flat(GemCarModel_solver_capsule ** capsules, const char *field, double *data, int N_data, int N_batch);
-ACADOS_SYMBOL_EXPORT void GemCarModel_acados_batch_get_flat(GemCarModel_solver_capsule ** capsules, const char *field, double *data, int N_data, int N_batch);
-
-ACADOS_SYMBOL_EXPORT void GemCarModel_acados_batch_eval_solution_sens_adj_p(GemCarModel_solver_capsule ** capsules, const char *field, int stage, double *out, int offset, int N_batch);
-ACADOS_SYMBOL_EXPORT void GemCarModel_acados_batch_eval_params_jac(GemCarModel_solver_capsule ** capsules, int N_batch);
-
-
 ACADOS_SYMBOL_EXPORT int GemCarModel_acados_free(GemCarModel_solver_capsule * capsule);
 ACADOS_SYMBOL_EXPORT void GemCarModel_acados_print_stats(GemCarModel_solver_capsule * capsule);
 ACADOS_SYMBOL_EXPORT int GemCarModel_acados_custom_update(GemCarModel_solver_capsule* capsule, double* data, int data_len);

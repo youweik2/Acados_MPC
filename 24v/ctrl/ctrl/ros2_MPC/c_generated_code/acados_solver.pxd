@@ -45,7 +45,6 @@ cdef extern from "acados_solver_GemCarModel.h":
 
     int acados_update_params "GemCarModel_acados_update_params"(nlp_solver_capsule * capsule, int stage, double *value, int np_)
     int acados_update_params_sparse "GemCarModel_acados_update_params_sparse"(nlp_solver_capsule * capsule, int stage, int *idx, double *p, int n_update)
-    int acados_set_p_global_and_precompute_dependencies "GemCarModel_acados_set_p_global_and_precompute_dependencies"(nlp_solver_capsule * capsule, double *value, int data_len)
     int acados_solve "GemCarModel_acados_solve"(nlp_solver_capsule * capsule)
     int acados_reset "GemCarModel_acados_reset"(nlp_solver_capsule * capsule, int reset_qp_solver_mem)
     int acados_free "GemCarModel_acados_free"(nlp_solver_capsule * capsule)
