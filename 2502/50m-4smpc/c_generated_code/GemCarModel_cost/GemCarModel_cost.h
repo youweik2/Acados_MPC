@@ -53,13 +53,6 @@ const int *GemCarModel_cost_y_0_fun_jac_ut_xt_sparsity_out(int);
 int GemCarModel_cost_y_0_fun_jac_ut_xt_n_in(void);
 int GemCarModel_cost_y_0_fun_jac_ut_xt_n_out(void);
 
-int GemCarModel_cost_y_0_hess(const real_t** arg, real_t** res, int* iw, real_t* w, void *mem);
-int GemCarModel_cost_y_0_hess_work(int *, int *, int *, int *);
-const int *GemCarModel_cost_y_0_hess_sparsity_in(int);
-const int *GemCarModel_cost_y_0_hess_sparsity_out(int);
-int GemCarModel_cost_y_0_hess_n_in(void);
-int GemCarModel_cost_y_0_hess_n_out(void);
-
 
 
 // Cost at path shooting node
@@ -77,13 +70,6 @@ const int *GemCarModel_cost_y_fun_jac_ut_xt_sparsity_in(int);
 const int *GemCarModel_cost_y_fun_jac_ut_xt_sparsity_out(int);
 int GemCarModel_cost_y_fun_jac_ut_xt_n_in(void);
 int GemCarModel_cost_y_fun_jac_ut_xt_n_out(void);
-
-int GemCarModel_cost_y_hess(const real_t** arg, real_t** res, int* iw, real_t* w, void *mem);
-int GemCarModel_cost_y_hess_work(int *, int *, int *, int *);
-const int *GemCarModel_cost_y_hess_sparsity_in(int);
-const int *GemCarModel_cost_y_hess_sparsity_out(int);
-int GemCarModel_cost_y_hess_n_in(void);
-int GemCarModel_cost_y_hess_n_out(void);
 
 
 
@@ -103,12 +89,6 @@ const int *GemCarModel_cost_y_e_fun_jac_ut_xt_sparsity_out(int);
 int GemCarModel_cost_y_e_fun_jac_ut_xt_n_in(void);
 int GemCarModel_cost_y_e_fun_jac_ut_xt_n_out(void);
 
-int GemCarModel_cost_y_e_hess(const real_t** arg, real_t** res, int* iw, real_t* w, void *mem);
-int GemCarModel_cost_y_e_hess_work(int *, int *, int *, int *);
-const int *GemCarModel_cost_y_e_hess_sparsity_in(int);
-const int *GemCarModel_cost_y_e_hess_sparsity_out(int);
-int GemCarModel_cost_y_e_hess_n_in(void);
-int GemCarModel_cost_y_e_hess_n_out(void);
 
 
 

@@ -39,6 +39,8 @@
 
 // example specific
 #include "GemCarModel_model/GemCarModel_model.h"
+
+
 #include "GemCarModel_constraints/GemCarModel_constraints.h"
 #include "GemCarModel_cost/GemCarModel_cost.h"
 
@@ -50,6 +52,7 @@
 #define NZ     GEMCARMODEL_NZ
 #define NU     GEMCARMODEL_NU
 #define NP     GEMCARMODEL_NP
+#define NP_GLOBAL     GEMCARMODEL_NP_GLOBAL
 #define NY0    GEMCARMODEL_NY0
 #define NY     GEMCARMODEL_NY
 #define NYN    GEMCARMODEL_NYN
@@ -139,7 +142,7 @@ int GemCarModel_acados_update_time_steps(GemCarModel_solver_capsule* capsule, in
 /**
  * Internal function for GemCarModel_acados_create: step 1
  */
-void GemCarModel_acados_create_1_set_plan(ocp_nlp_plan_t* nlp_solver_plan, const int N)
+void GemCarModel_acados_create_set_plan(ocp_nlp_plan_t* nlp_solver_plan, const int N)
 {
     assert(N == nlp_solver_plan->N);
 
@@ -172,13 +175,12 @@ void GemCarModel_acados_create_1_set_plan(ocp_nlp_plan_t* nlp_solver_plan, const
     nlp_solver_plan->nlp_constraints[N] = BGH;
 
     nlp_solver_plan->regularization = NO_REGULARIZE;
+
+    nlp_solver_plan->globalization = FIXED_STEP;
 }
 
 
-/**
- * Internal function for GemCarModel_acados_create: step 2
- */
-ocp_nlp_dims* GemCarModel_acados_create_2_create_and_set_dimensions(GemCarModel_solver_capsule* capsule)
+static ocp_nlp_dims* GemCarModel_acados_create_setup_dimensions(GemCarModel_solver_capsule* capsule)
 {
     ocp_nlp_plan_t* nlp_solver_plan = capsule->nlp_solver_plan;
     const int N = nlp_solver_plan->N;
@@ -275,6 +277,9 @@ ocp_nlp_dims* GemCarModel_acados_create_2_create_and_set_dimensions(GemCarModel_
     ocp_nlp_dims_set_opt_vars(nlp_config, nlp_dims, "ns", ns);
     ocp_nlp_dims_set_opt_vars(nlp_config, nlp_dims, "np", np);
 
+    ocp_nlp_dims_set_global(nlp_config, nlp_dims, "np_global", 0);
+    ocp_nlp_dims_set_global(nlp_config, nlp_dims, "n_global_data", 0);
+
     for (int i = 0; i <= N; i++)
     {
         ocp_nlp_dims_set_constraints(nlp_config, nlp_dims, i, "nbx", &nbx[i]);
@@ -309,10 +314,9 @@ ocp_nlp_dims* GemCarModel_acados_create_2_create_and_set_dimensions(GemCarModel_
 /**
  * Internal function for GemCarModel_acados_create: step 3
  */
-void GemCarModel_acados_create_3_create_and_set_functions(GemCarModel_solver_capsule* capsule)
+void GemCarModel_acados_create_setup_functions(GemCarModel_solver_capsule* capsule)
 {
     const int N = capsule->nlp_solver_plan->N;
-
 
     /************************************************
     *  external functions
@@ -325,59 +329,63 @@ void GemCarModel_acados_create_3_create_and_set_functions(GemCarModel_solver_cap
         capsule->__CAPSULE_FNC__.casadi_sparsity_in = & __MODEL_BASE_FNC__ ## _sparsity_in; \
         capsule->__CAPSULE_FNC__.casadi_sparsity_out = & __MODEL_BASE_FNC__ ## _sparsity_out; \
         capsule->__CAPSULE_FNC__.casadi_work = & __MODEL_BASE_FNC__ ## _work; \
-        external_function_param_casadi_create(&capsule->__CAPSULE_FNC__ , 0); \
+        external_function_external_param_casadi_create(&capsule->__CAPSULE_FNC__, &ext_fun_opts); \
     } while(false)
+
+    external_function_opts ext_fun_opts;
+    external_function_opts_set_to_default(&ext_fun_opts);
+
+
+    ext_fun_opts.external_workspace = true;
     // constraints.constr_type == "BGH" and dims.nh > 0
-    capsule->nl_constr_h_fun_jac = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
+    capsule->nl_constr_h_fun_jac = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*(N-1));
     for (int i = 0; i < N-1; i++) {
         MAP_CASADI_FNC(nl_constr_h_fun_jac[i], GemCarModel_constr_h_fun_jac_uxt_zt);
     }
-    capsule->nl_constr_h_fun = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
+    capsule->nl_constr_h_fun = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*(N-1));
     for (int i = 0; i < N-1; i++) {
         MAP_CASADI_FNC(nl_constr_h_fun[i], GemCarModel_constr_h_fun);
     }
-    
-
-
-
-    // explicit ode
-    capsule->forw_vde_casadi = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*N);
-    for (int i = 0; i < N; i++) {
-        MAP_CASADI_FNC(forw_vde_casadi[i], GemCarModel_expl_vde_forw);
-    }
-
-    capsule->expl_ode_fun = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*N);
-    for (int i = 0; i < N; i++) {
-        MAP_CASADI_FNC(expl_ode_fun[i], GemCarModel_expl_ode_fun);
-    }
-
 
     // nonlinear least squares function
     MAP_CASADI_FNC(cost_y_0_fun, GemCarModel_cost_y_0_fun);
     MAP_CASADI_FNC(cost_y_0_fun_jac_ut_xt, GemCarModel_cost_y_0_fun_jac_ut_xt);
-    MAP_CASADI_FNC(cost_y_0_hess, GemCarModel_cost_y_0_hess);
+
+
+
+
+    // explicit ode
+    capsule->expl_vde_forw = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*N);
+    for (int i = 0; i < N; i++) {
+        MAP_CASADI_FNC(expl_vde_forw[i], GemCarModel_expl_vde_forw);
+    }
+
+    capsule->expl_ode_fun = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*N);
+    for (int i = 0; i < N; i++) {
+        MAP_CASADI_FNC(expl_ode_fun[i], GemCarModel_expl_ode_fun);
+    }
+
+    capsule->expl_vde_adj = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*N);
+    for (int i = 0; i < N; i++) {
+        MAP_CASADI_FNC(expl_vde_adj[i], GemCarModel_expl_vde_adj);
+    }
+
+
     // nonlinear least squares cost
-    capsule->cost_y_fun = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
+    capsule->cost_y_fun = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*(N-1));
     for (int i = 0; i < N-1; i++)
     {
         MAP_CASADI_FNC(cost_y_fun[i], GemCarModel_cost_y_fun);
     }
 
-    capsule->cost_y_fun_jac_ut_xt = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
+    capsule->cost_y_fun_jac_ut_xt = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*(N-1));
     for (int i = 0; i < N-1; i++)
     {
         MAP_CASADI_FNC(cost_y_fun_jac_ut_xt[i], GemCarModel_cost_y_fun_jac_ut_xt);
     }
-
-    capsule->cost_y_hess = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi)*(N-1));
-    for (int i = 0; i < N-1; i++)
-    {
-        MAP_CASADI_FNC(cost_y_hess[i], GemCarModel_cost_y_hess);
-    }
     // nonlinear least square function
     MAP_CASADI_FNC(cost_y_e_fun, GemCarModel_cost_y_e_fun);
     MAP_CASADI_FNC(cost_y_e_fun_jac_ut_xt, GemCarModel_cost_y_e_fun_jac_ut_xt);
-    MAP_CASADI_FNC(cost_y_e_hess, GemCarModel_cost_y_e_hess);
 
 #undef MAP_CASADI_FNC
 }
@@ -386,15 +394,20 @@ void GemCarModel_acados_create_3_create_and_set_functions(GemCarModel_solver_cap
 /**
  * Internal function for GemCarModel_acados_create: step 4
  */
-void GemCarModel_acados_create_4_set_default_parameters(GemCarModel_solver_capsule* capsule) {
+void GemCarModel_acados_create_set_default_parameters(GemCarModel_solver_capsule* capsule)
+{
+
     // no parameters defined
+
+
+    // no global parameters defined
 }
 
 
 /**
  * Internal function for GemCarModel_acados_create: step 5
  */
-void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule, const int N, double* new_time_steps)
+void GemCarModel_acados_setup_nlp_in(GemCarModel_solver_capsule* capsule, const int N, double* new_time_steps)
 {
     assert(N == capsule->nlp_solver_plan->N);
     ocp_nlp_config* nlp_config = capsule->nlp_config;
@@ -409,26 +422,58 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
 //    capsule->nlp_in = nlp_in;
     ocp_nlp_in * nlp_in = capsule->nlp_in;
 
-    // set up time_steps
+    // set up time_steps and cost_scaling
 
     if (new_time_steps)
     {
+        // NOTE: this sets scaling and time_steps
         GemCarModel_acados_update_time_steps(capsule, N, new_time_steps);
     }
     else
-    {double time_step = 0.05;
+    {
+        // set time_steps
+    double time_step = 0.05;
         for (int i = 0; i < N; i++)
         {
             ocp_nlp_in_set(nlp_config, nlp_dims, nlp_in, i, "Ts", &time_step);
-            ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "scaling", &time_step);
         }
+        // set cost scaling
+        double* cost_scaling = malloc((N+1)*sizeof(double));
+        cost_scaling[0] = 0.05;
+        cost_scaling[1] = 0.05;
+        cost_scaling[2] = 0.05;
+        cost_scaling[3] = 0.05;
+        cost_scaling[4] = 0.05;
+        cost_scaling[5] = 0.05;
+        cost_scaling[6] = 0.05;
+        cost_scaling[7] = 0.05;
+        cost_scaling[8] = 0.05;
+        cost_scaling[9] = 0.05;
+        cost_scaling[10] = 0.05;
+        cost_scaling[11] = 0.05;
+        cost_scaling[12] = 0.05;
+        cost_scaling[13] = 0.05;
+        cost_scaling[14] = 0.05;
+        cost_scaling[15] = 0.05;
+        cost_scaling[16] = 0.05;
+        cost_scaling[17] = 0.05;
+        cost_scaling[18] = 0.05;
+        cost_scaling[19] = 0.05;
+        cost_scaling[20] = 1;
+        for (int i = 0; i <= N; i++)
+        {
+            ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "scaling", &cost_scaling[i]);
+        }
+        free(cost_scaling);
     }
+
 
     /**** Dynamics ****/
     for (int i = 0; i < N; i++)
     {
-        ocp_nlp_dynamics_model_set(nlp_config, nlp_dims, nlp_in, i, "expl_vde_forw", &capsule->forw_vde_casadi[i]);
-        ocp_nlp_dynamics_model_set(nlp_config, nlp_dims, nlp_in, i, "expl_ode_fun", &capsule->expl_ode_fun[i]);
+        ocp_nlp_dynamics_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "expl_vde_forw", &capsule->expl_vde_forw[i]);
+        ocp_nlp_dynamics_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "expl_ode_fun", &capsule->expl_ode_fun[i]);
+        ocp_nlp_dynamics_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "expl_vde_adj", &capsule->expl_vde_adj[i]);
     }
 
     /**** Cost ****/
@@ -439,12 +484,12 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
 
    double* W_0 = calloc(NY0*NY0, sizeof(double));
     // change only the non-zero elements:
-    W_0[0+(NY0) * 0] = 20;
+    W_0[0+(NY0) * 0] = 10;
     W_0[1+(NY0) * 1] = 5;
     W_0[2+(NY0) * 2] = 15;
-    W_0[3+(NY0) * 3] = 3;
-    W_0[4+(NY0) * 4] = 10;
-    W_0[5+(NY0) * 5] = 500;
+    W_0[3+(NY0) * 3] = 2;
+    W_0[4+(NY0) * 4] = 100;
+    W_0[5+(NY0) * 5] = 1200;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, 0, "W", W_0);
     free(W_0);
     double* yref = calloc(NY, sizeof(double));
@@ -457,12 +502,12 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     free(yref);
     double* W = calloc(NY*NY, sizeof(double));
     // change only the non-zero elements:
-    W[0+(NY) * 0] = 20;
+    W[0+(NY) * 0] = 10;
     W[1+(NY) * 1] = 5;
     W[2+(NY) * 2] = 15;
-    W[3+(NY) * 3] = 3;
-    W[4+(NY) * 4] = 10;
-    W[5+(NY) * 5] = 500;
+    W[3+(NY) * 3] = 2;
+    W[4+(NY) * 4] = 100;
+    W[5+(NY) * 5] = 1200;
 
     for (int i = 1; i < N; i++)
     {
@@ -482,18 +527,15 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     W_e[3+(NYN) * 3] = 2;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, N, "W", W_e);
     free(W_e);
-    ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, 0, "nls_y_fun", &capsule->cost_y_0_fun);
-    ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, 0, "nls_y_fun_jac", &capsule->cost_y_0_fun_jac_ut_xt);
-    ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, 0, "nls_y_hess", &capsule->cost_y_0_hess);
+    ocp_nlp_cost_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, 0, "nls_y_fun", &capsule->cost_y_0_fun);
+    ocp_nlp_cost_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, 0, "nls_y_fun_jac", &capsule->cost_y_0_fun_jac_ut_xt);
     for (int i = 1; i < N; i++)
     {
-        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "nls_y_fun", &capsule->cost_y_fun[i-1]);
-        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "nls_y_fun_jac", &capsule->cost_y_fun_jac_ut_xt[i-1]);
-        ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, i, "nls_y_hess", &capsule->cost_y_hess[i-1]);
+        ocp_nlp_cost_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "nls_y_fun", &capsule->cost_y_fun[i-1]);
+        ocp_nlp_cost_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "nls_y_fun_jac", &capsule->cost_y_fun_jac_ut_xt[i-1]);
     }
-    ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, N, "nls_y_fun", &capsule->cost_y_e_fun);
-    ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, N, "nls_y_fun_jac", &capsule->cost_y_e_fun_jac_ut_xt);
-    ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, N, "nls_y_hess", &capsule->cost_y_e_hess);
+    ocp_nlp_cost_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, N, "nls_y_fun", &capsule->cost_y_e_fun);
+    ocp_nlp_cost_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, N, "nls_y_fun_jac", &capsule->cost_y_e_fun_jac_ut_xt);
 
 
 
@@ -504,10 +546,12 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     double* zl = zlumem+NS*2;
     double* zu = zlumem+NS*3;
     // change only the non-zero elements:
-    Zl[0] = 1;
-    Zu[0] = 1;
+    Zl[0] = 10;
+    Zl[1] = 10;
+    Zl[2] = 10;
     zl[0] = 100;
-    zu[0] = 100;
+    zl[1] = 100;
+    zl[2] = 100;
 
     for (int i = 1; i < N; i++)
     {
@@ -542,7 +586,6 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     free(lubx0);
     // idxbxe_0
     int* idxbxe_0 = malloc(4 * sizeof(int));
-    
     idxbxe_0[0] = 0;
     idxbxe_0[1] = 1;
     idxbxe_0[2] = 2;
@@ -560,13 +603,11 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     /* constraints that are the same for initial and intermediate */
     // u
     int* idxbu = malloc(NBU * sizeof(int));
-    
     idxbu[0] = 0;
     idxbu[1] = 1;
     double* lubu = calloc(2*NBU, sizeof(double));
     double* lbu = lubu;
     double* ubu = lubu + NBU;
-    
     lbu[0] = -2;
     ubu[0] = 1.5;
     lbu[1] = -0.6041524333826525;
@@ -586,12 +627,12 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
 
     // set up soft bounds for nonlinear constraints
     int* idxsh = malloc(NSH * sizeof(int));
-    
     idxsh[0] = 0;
+    idxsh[1] = 1;
+    idxsh[2] = 2;
     double* lush = calloc(2*NSH, sizeof(double));
     double* lsh = lush;
     double* ush = lush + NSH;
-    
 
     for (int i = 1; i < N; i++)
     {
@@ -607,7 +648,6 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
 
     // x
     int* idxbx = malloc(NBX * sizeof(int));
-    
     idxbx[0] = 0;
     idxbx[1] = 1;
     idxbx[2] = 2;
@@ -615,7 +655,6 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     double* lubx = calloc(2*NBX, sizeof(double));
     double* lbx = lubx;
     double* ubx = lubx + NBX;
-    
     lbx[0] = -10;
     ubx[0] = 10;
     lbx[1] = -100;
@@ -640,18 +679,18 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
     double* luh = calloc(2*NH, sizeof(double));
     double* lh = luh;
     double* uh = luh + NH;
-
-    
-
-    
-    uh[0] = 1000;
+    uh[0] = 100;
+    uh[1] = 100;
+    uh[2] = 100;
 
     for (int i = 1; i < N; i++)
     {
-        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun_jac",
+        ocp_nlp_constraints_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun_jac",
                                       &capsule->nl_constr_h_fun_jac[i-1]);
-        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun",
+        ocp_nlp_constraints_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun",
                                       &capsule->nl_constr_h_fun[i-1]);
+        
+        
         
         ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "lh", lh);
         ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, i, "uh", uh);
@@ -677,10 +716,7 @@ void GemCarModel_acados_create_5_set_nlp_in(GemCarModel_solver_capsule* capsule,
 }
 
 
-/**
- * Internal function for GemCarModel_acados_create: step 6
- */
-void GemCarModel_acados_create_6_set_opts(GemCarModel_solver_capsule* capsule)
+static void GemCarModel_acados_create_set_opts(GemCarModel_solver_capsule* capsule)
 {
     const int N = capsule->nlp_solver_plan->N;
     ocp_nlp_config* nlp_config = capsule->nlp_config;
@@ -690,16 +726,25 @@ void GemCarModel_acados_create_6_set_opts(GemCarModel_solver_capsule* capsule)
     *  opts
     ************************************************/
 
-int fixed_hess = 0;
+
+
+    int fixed_hess = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "fixed_hess", &fixed_hess);
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "globalization", "fixed_step");int with_solution_sens_wrt_params = false;
+
+    double globalization_fixed_step_length = 1;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "globalization_fixed_step_length", &globalization_fixed_step_length);
+
+
+
+
+    int with_solution_sens_wrt_params = false;
     ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "with_solution_sens_wrt_params", &with_solution_sens_wrt_params);
 
     int with_value_sens_wrt_params = false;
     ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "with_value_sens_wrt_params", &with_value_sens_wrt_params);
 
-    int full_step_dual = 0;
-    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "full_step_dual", &full_step_dual);
+    int globalization_full_step_dual = 0;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "globalization_full_step_dual", &globalization_full_step_dual);
 
     // set collocation type (relevant for implicit integrators)
     sim_collocation_type collocation_type = GAUSS_LEGENDRE;
@@ -722,13 +767,14 @@ int fixed_hess = 0;
     for (int i = 0; i < N; i++)
         ocp_nlp_solver_opts_set_at_stage(nlp_config, nlp_opts, i, "dynamics_newton_iter", &newton_iter_val);
 
+    double newton_tol_val = 0;
+    for (int i = 0; i < N; i++)
+        ocp_nlp_solver_opts_set_at_stage(nlp_config, nlp_opts, i, "dynamics_newton_tol", &newton_tol_val);
+
     // set up sim_method_jac_reuse
     bool tmp_bool = (bool) 0;
     for (int i = 0; i < N; i++)
         ocp_nlp_solver_opts_set_at_stage(nlp_config, nlp_opts, i, "dynamics_jac_reuse", &tmp_bool);
-
-    double nlp_solver_step_length = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "step_length", &nlp_solver_step_length);
 
     double levenberg_marquardt = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "levenberg_marquardt", &levenberg_marquardt);
@@ -737,8 +783,13 @@ int fixed_hess = 0;
 
     int nlp_solver_ext_qp_res = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "ext_qp_res", &nlp_solver_ext_qp_res);
+
+    bool store_iterates = false;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "store_iterates", &store_iterates);
     // set HPIPM mode: should be done before setting other QP solver options
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_hpipm_mode", "BALANCE");
+
+
 
 
     int as_rti_iter = 1;
@@ -750,6 +801,9 @@ int fixed_hess = 0;
     int rti_log_residuals = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "rti_log_residuals", &rti_log_residuals);
 
+    int rti_log_only_available_residuals = 0;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "rti_log_only_available_residuals", &rti_log_only_available_residuals);
+
     int qp_solver_iter_max = 50;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_iter_max", &qp_solver_iter_max);
 
@@ -759,16 +813,13 @@ int fixed_hess = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "print_level", &print_level);
 
     int ext_cost_num_hess = 0;
-
-
-
 }
 
 
 /**
  * Internal function for GemCarModel_acados_create: step 7
  */
-void GemCarModel_acados_create_7_set_nlp_out(GemCarModel_solver_capsule* capsule)
+void GemCarModel_acados_set_nlp_out(GemCarModel_solver_capsule* capsule)
 {
     const int N = capsule->nlp_solver_plan->N;
     ocp_nlp_config* nlp_config = capsule->nlp_config;
@@ -780,7 +831,6 @@ void GemCarModel_acados_create_7_set_nlp_out(GemCarModel_solver_capsule* capsule
     double* x0 = xu0;
 
     // initialize with x0
-    
 
 
     double* u0 = xu0 + NX;
@@ -798,17 +848,9 @@ void GemCarModel_acados_create_7_set_nlp_out(GemCarModel_solver_capsule* capsule
 
 
 /**
- * Internal function for GemCarModel_acados_create: step 8
- */
-//void GemCarModel_acados_create_8_create_solver(GemCarModel_solver_capsule* capsule)
-//{
-//    capsule->nlp_solver = ocp_nlp_solver_create(capsule->nlp_config, capsule->nlp_dims, capsule->nlp_opts);
-//}
-
-/**
  * Internal function for GemCarModel_acados_create: step 9
  */
-int GemCarModel_acados_create_9_precompute(GemCarModel_solver_capsule* capsule) {
+int GemCarModel_acados_create_precompute(GemCarModel_solver_capsule* capsule) {
     int status = ocp_nlp_precompute(capsule->nlp_solver, capsule->nlp_in, capsule->nlp_out);
 
     if (status != ACADOS_SUCCESS) {
@@ -836,37 +878,36 @@ int GemCarModel_acados_create_with_discretization(GemCarModel_solver_capsule* ca
 
     // 1) create and set nlp_solver_plan; create nlp_config
     capsule->nlp_solver_plan = ocp_nlp_plan_create(N);
-    GemCarModel_acados_create_1_set_plan(capsule->nlp_solver_plan, N);
+    GemCarModel_acados_create_set_plan(capsule->nlp_solver_plan, N);
     capsule->nlp_config = ocp_nlp_config_create(*capsule->nlp_solver_plan);
 
-    // 3) create and set dimensions
-    capsule->nlp_dims = GemCarModel_acados_create_2_create_and_set_dimensions(capsule);
-    GemCarModel_acados_create_3_create_and_set_functions(capsule);
+    // 2) create and set dimensions
+    capsule->nlp_dims = GemCarModel_acados_create_setup_dimensions(capsule);
 
-    // 4) set default parameters in functions
-    GemCarModel_acados_create_4_set_default_parameters(capsule);
-
-    // 5) create and set nlp_in
-    capsule->nlp_in = ocp_nlp_in_create(capsule->nlp_config, capsule->nlp_dims);
-    GemCarModel_acados_create_5_set_nlp_in(capsule, N, new_time_steps);
-
-    // 6) create and set nlp_opts
+    // 3) create and set nlp_opts
     capsule->nlp_opts = ocp_nlp_solver_opts_create(capsule->nlp_config, capsule->nlp_dims);
-    GemCarModel_acados_create_6_set_opts(capsule);
+    GemCarModel_acados_create_set_opts(capsule);
+
+    // 4) create nlp_in
+    capsule->nlp_in = ocp_nlp_in_create(capsule->nlp_config, capsule->nlp_dims);
+
+    // 5) setup functions, nlp_in and default parameters
+    GemCarModel_acados_create_setup_functions(capsule);
+    GemCarModel_acados_setup_nlp_in(capsule, N, new_time_steps);
+    GemCarModel_acados_create_set_default_parameters(capsule);
+
+    // 6) create solver
+    capsule->nlp_solver = ocp_nlp_solver_create(capsule->nlp_config, capsule->nlp_dims, capsule->nlp_opts, capsule->nlp_in);
 
     // 7) create and set nlp_out
     // 7.1) nlp_out
     capsule->nlp_out = ocp_nlp_out_create(capsule->nlp_config, capsule->nlp_dims);
     // 7.2) sens_out
     capsule->sens_out = ocp_nlp_out_create(capsule->nlp_config, capsule->nlp_dims);
-    GemCarModel_acados_create_7_set_nlp_out(capsule);
+    GemCarModel_acados_set_nlp_out(capsule);
 
-    // 8) create solver
-    capsule->nlp_solver = ocp_nlp_solver_create(capsule->nlp_config, capsule->nlp_dims, capsule->nlp_opts);
-    //GemCarModel_acados_create_8_create_solver(capsule);
-
-    // 9) do precomputations
-    int status = GemCarModel_acados_create_9_precompute(capsule);
+    // 8) do precomputations
+    int status = GemCarModel_acados_create_precompute(capsule);
 
     return status;
 }
@@ -903,7 +944,6 @@ int GemCarModel_acados_reset(GemCarModel_solver_capsule* capsule, int reset_qp_s
         ocp_nlp_out_set(nlp_config, nlp_dims, nlp_out, i, "sl", buffer);
         ocp_nlp_out_set(nlp_config, nlp_dims, nlp_out, i, "su", buffer);
         ocp_nlp_out_set(nlp_config, nlp_dims, nlp_out, i, "lam", buffer);
-        ocp_nlp_out_set(nlp_config, nlp_dims, nlp_out, i, "t", buffer);
         ocp_nlp_out_set(nlp_config, nlp_dims, nlp_out, i, "z", buffer);
         if (i<N)
         {
@@ -928,47 +968,7 @@ int GemCarModel_acados_update_params(GemCarModel_solver_capsule* capsule, int st
             " External function has %i parameters. Exiting.\n", np, casadi_np);
         exit(1);
     }
-
-    const int N = capsule->nlp_solver_plan->N;
-    if (stage < N && stage >= 0)
-    {
-        capsule->forw_vde_casadi[stage].set_param(capsule->forw_vde_casadi+stage, p);
-        capsule->expl_ode_fun[stage].set_param(capsule->expl_ode_fun+stage, p);
-
-        // constraints
-        if (stage == 0)
-        {
-        }
-        else
-        {
-            capsule->nl_constr_h_fun_jac[stage-1].set_param(capsule->nl_constr_h_fun_jac+stage-1, p);
-            capsule->nl_constr_h_fun[stage-1].set_param(capsule->nl_constr_h_fun+stage-1, p);
-        }
-
-        // cost
-        if (stage == 0)
-        {
-            capsule->cost_y_0_fun.set_param(&capsule->cost_y_0_fun, p);
-            capsule->cost_y_0_fun_jac_ut_xt.set_param(&capsule->cost_y_0_fun_jac_ut_xt, p);
-            capsule->cost_y_0_hess.set_param(&capsule->cost_y_0_hess, p);
-        }
-        else // 0 < stage < N
-        {
-            capsule->cost_y_fun[stage-1].set_param(capsule->cost_y_fun+stage-1, p);
-            capsule->cost_y_fun_jac_ut_xt[stage-1].set_param(capsule->cost_y_fun_jac_ut_xt+stage-1, p);
-            capsule->cost_y_hess[stage-1].set_param(capsule->cost_y_hess+stage-1, p);
-        }
-    }
-
-    else // stage == N
-    {
-        // terminal shooting node has no dynamics
-        // cost
-        capsule->cost_y_e_fun.set_param(&capsule->cost_y_e_fun, p);
-        capsule->cost_y_e_fun_jac_ut_xt.set_param(&capsule->cost_y_e_fun_jac_ut_xt, p);
-        capsule->cost_y_e_hess.set_param(&capsule->cost_y_e_hess, p);
-        // constraints
-    }
+    ocp_nlp_in_set(capsule->nlp_config, capsule->nlp_dims, capsule->nlp_in, stage, "parameter_values", p);
 
     return solver_status;
 }
@@ -976,26 +976,20 @@ int GemCarModel_acados_update_params(GemCarModel_solver_capsule* capsule, int st
 
 int GemCarModel_acados_update_params_sparse(GemCarModel_solver_capsule * capsule, int stage, int *idx, double *p, int n_update)
 {
-    int solver_status = 0;
+    ocp_nlp_in_set_params_sparse(capsule->nlp_config, capsule->nlp_dims, capsule->nlp_in, stage, idx, p, n_update);
 
-    int casadi_np = 0;
-    if (casadi_np < n_update) {
-        printf("GemCarModel_acados_update_params_sparse: trying to set %d parameters for external functions."
-            " External function has %d parameters. Exiting.\n", n_update, casadi_np);
-        exit(1);
-    }
-    // for (int i = 0; i < n_update; i++)
-    // {
-    //     if (idx[i] > casadi_np) {
-    //         printf("GemCarModel_acados_update_params_sparse: attempt to set parameters with index %d, while"
-    //             " external functions only has %d parameters. Exiting.\n", idx[i], casadi_np);
-    //         exit(1);
-    //     }
-    //     printf("param %d value %e\n", idx[i], p[i]);
-    // }
-
-    return solver_status;
+    return 0;
 }
+
+
+int GemCarModel_acados_set_p_global_and_precompute_dependencies(GemCarModel_solver_capsule* capsule, double* data, int data_len)
+{
+
+    printf("p_global is not defined, GemCarModel_acados_set_p_global_and_precompute_dependencies does nothing.\n");
+}
+
+
+
 
 int GemCarModel_acados_solve(GemCarModel_solver_capsule* capsule)
 {
@@ -1012,6 +1006,56 @@ void GemCarModel_acados_batch_solve(GemCarModel_solver_capsule ** capsules, int 
     for (int i = 0; i < N_batch; i++)
     {
         ocp_nlp_solve(capsules[i]->nlp_solver, capsules[i]->nlp_in, capsules[i]->nlp_out);
+    }
+
+
+    return;
+}
+
+
+void GemCarModel_acados_batch_eval_params_jac(GemCarModel_solver_capsule ** capsules, int N_batch)
+{
+
+    for (int i = 0; i < N_batch; i++)
+    {
+        ocp_nlp_eval_params_jac(capsules[i]->nlp_solver, capsules[i]->nlp_in, capsules[i]->nlp_out);
+    }
+
+
+    return;
+}
+
+
+
+void GemCarModel_acados_batch_eval_solution_sens_adj_p(GemCarModel_solver_capsule ** capsules, const char *field, int stage, double *out, int offset, int N_batch)
+{
+
+
+    for (int i = 0; i < N_batch; i++)
+    {
+        ocp_nlp_eval_solution_sens_adj_p(capsules[i]->nlp_solver, capsules[i]->nlp_in, capsules[i]->sens_out, field, stage, out + i*offset);
+    }
+
+
+    return;
+}
+
+
+void GemCarModel_acados_batch_set_flat(GemCarModel_solver_capsule ** capsules, const char *field, void *data, int N_data, int N_batch)
+{
+    double *double_values = data;
+    int offset = ocp_nlp_dims_get_total_from_attr(capsules[0]->nlp_solver->config, capsules[0]->nlp_solver->dims, field);
+
+    if (N_batch*offset != N_data)
+    {
+        printf("batch_set_flat: wrong input dimension, expected %d, got %d\n", N_batch*offset, N_data);
+        exit(1);
+    }
+
+
+    for (int i = 0; i < N_batch; i++)
+    {
+        ocp_nlp_set_all(capsules[i]->nlp_solver, capsules[i]->nlp_in, capsules[i]->nlp_out, field, double_values + i * offset);
     }
 
 
@@ -1037,37 +1081,37 @@ int GemCarModel_acados_free(GemCarModel_solver_capsule* capsule)
     // dynamics
     for (int i = 0; i < N; i++)
     {
-        external_function_param_casadi_free(&capsule->forw_vde_casadi[i]);
-        external_function_param_casadi_free(&capsule->expl_ode_fun[i]);
+        external_function_external_param_casadi_free(&capsule->expl_vde_forw[i]);
+        external_function_external_param_casadi_free(&capsule->expl_ode_fun[i]);
+        external_function_external_param_casadi_free(&capsule->expl_vde_adj[i]);
     }
-    free(capsule->forw_vde_casadi);
+    free(capsule->expl_vde_adj);
+    free(capsule->expl_vde_forw);
     free(capsule->expl_ode_fun);
 
     // cost
-    external_function_param_casadi_free(&capsule->cost_y_0_fun);
-    external_function_param_casadi_free(&capsule->cost_y_0_fun_jac_ut_xt);
-    external_function_param_casadi_free(&capsule->cost_y_0_hess);
+    external_function_external_param_casadi_free(&capsule->cost_y_0_fun);
+    external_function_external_param_casadi_free(&capsule->cost_y_0_fun_jac_ut_xt);
     for (int i = 0; i < N - 1; i++)
     {
-        external_function_param_casadi_free(&capsule->cost_y_fun[i]);
-        external_function_param_casadi_free(&capsule->cost_y_fun_jac_ut_xt[i]);
-        external_function_param_casadi_free(&capsule->cost_y_hess[i]);
+        external_function_external_param_casadi_free(&capsule->cost_y_fun[i]);
+        external_function_external_param_casadi_free(&capsule->cost_y_fun_jac_ut_xt[i]);
     }
     free(capsule->cost_y_fun);
     free(capsule->cost_y_fun_jac_ut_xt);
-    free(capsule->cost_y_hess);
-    external_function_param_casadi_free(&capsule->cost_y_e_fun);
-    external_function_param_casadi_free(&capsule->cost_y_e_fun_jac_ut_xt);
-    external_function_param_casadi_free(&capsule->cost_y_e_hess);
+    external_function_external_param_casadi_free(&capsule->cost_y_e_fun);
+    external_function_external_param_casadi_free(&capsule->cost_y_e_fun_jac_ut_xt);
 
     // constraints
     for (int i = 0; i < N-1; i++)
     {
-        external_function_param_casadi_free(&capsule->nl_constr_h_fun_jac[i]);
-        external_function_param_casadi_free(&capsule->nl_constr_h_fun[i]);
+        external_function_external_param_casadi_free(&capsule->nl_constr_h_fun_jac[i]);
+        external_function_external_param_casadi_free(&capsule->nl_constr_h_fun[i]);
     }
     free(capsule->nl_constr_h_fun_jac);
     free(capsule->nl_constr_h_fun);
+
+
 
     return 0;
 }
@@ -1076,13 +1120,13 @@ int GemCarModel_acados_free(GemCarModel_solver_capsule* capsule)
 void GemCarModel_acados_print_stats(GemCarModel_solver_capsule* capsule)
 {
     int nlp_iter, stat_m, stat_n, tmp_int;
-    ocp_nlp_get(capsule->nlp_config, capsule->nlp_solver, "nlp_iter", &nlp_iter);
-    ocp_nlp_get(capsule->nlp_config, capsule->nlp_solver, "stat_n", &stat_n);
-    ocp_nlp_get(capsule->nlp_config, capsule->nlp_solver, "stat_m", &stat_m);
+    ocp_nlp_get(capsule->nlp_solver, "nlp_iter", &nlp_iter);
+    ocp_nlp_get(capsule->nlp_solver, "stat_n", &stat_n);
+    ocp_nlp_get(capsule->nlp_solver, "stat_m", &stat_m);
 
-    
+
     double stat[1200];
-    ocp_nlp_get(capsule->nlp_config, capsule->nlp_solver, "statistics", stat);
+    ocp_nlp_get(capsule->nlp_solver, "statistics", stat);
 
     int nrow = nlp_iter+1 < stat_m ? nlp_iter+1 : stat_m;
 

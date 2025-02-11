@@ -73,22 +73,25 @@ int GemCarModel_acados_sim_create(GemCarModel_sim_solver_capsule * capsule)
     const int np = GEMCARMODEL_NP;
     bool tmp_bool;
 
-    
     double Tsim = 0.05;
+
+    external_function_opts ext_fun_opts;
+    external_function_opts_set_to_default(&ext_fun_opts);
+    ext_fun_opts.external_workspace = false;
 
     
     // explicit ode
-    capsule->sim_forw_vde_casadi = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi));
+    capsule->sim_expl_vde_forw = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi));
     capsule->sim_vde_adj_casadi = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi));
     capsule->sim_expl_ode_fun_casadi = (external_function_param_casadi *) malloc(sizeof(external_function_param_casadi));
 
-    capsule->sim_forw_vde_casadi->casadi_fun = &GemCarModel_expl_vde_forw;
-    capsule->sim_forw_vde_casadi->casadi_n_in = &GemCarModel_expl_vde_forw_n_in;
-    capsule->sim_forw_vde_casadi->casadi_n_out = &GemCarModel_expl_vde_forw_n_out;
-    capsule->sim_forw_vde_casadi->casadi_sparsity_in = &GemCarModel_expl_vde_forw_sparsity_in;
-    capsule->sim_forw_vde_casadi->casadi_sparsity_out = &GemCarModel_expl_vde_forw_sparsity_out;
-    capsule->sim_forw_vde_casadi->casadi_work = &GemCarModel_expl_vde_forw_work;
-    external_function_param_casadi_create(capsule->sim_forw_vde_casadi, np);
+    capsule->sim_expl_vde_forw->casadi_fun = &GemCarModel_expl_vde_forw;
+    capsule->sim_expl_vde_forw->casadi_n_in = &GemCarModel_expl_vde_forw_n_in;
+    capsule->sim_expl_vde_forw->casadi_n_out = &GemCarModel_expl_vde_forw_n_out;
+    capsule->sim_expl_vde_forw->casadi_sparsity_in = &GemCarModel_expl_vde_forw_sparsity_in;
+    capsule->sim_expl_vde_forw->casadi_sparsity_out = &GemCarModel_expl_vde_forw_sparsity_out;
+    capsule->sim_expl_vde_forw->casadi_work = &GemCarModel_expl_vde_forw_work;
+    external_function_param_casadi_create(capsule->sim_expl_vde_forw, np, &ext_fun_opts);
 
     capsule->sim_vde_adj_casadi->casadi_fun = &GemCarModel_expl_vde_adj;
     capsule->sim_vde_adj_casadi->casadi_n_in = &GemCarModel_expl_vde_adj_n_in;
@@ -96,7 +99,7 @@ int GemCarModel_acados_sim_create(GemCarModel_sim_solver_capsule * capsule)
     capsule->sim_vde_adj_casadi->casadi_sparsity_in = &GemCarModel_expl_vde_adj_sparsity_in;
     capsule->sim_vde_adj_casadi->casadi_sparsity_out = &GemCarModel_expl_vde_adj_sparsity_out;
     capsule->sim_vde_adj_casadi->casadi_work = &GemCarModel_expl_vde_adj_work;
-    external_function_param_casadi_create(capsule->sim_vde_adj_casadi, np);
+    external_function_param_casadi_create(capsule->sim_vde_adj_casadi, np, &ext_fun_opts);
 
     capsule->sim_expl_ode_fun_casadi->casadi_fun = &GemCarModel_expl_ode_fun;
     capsule->sim_expl_ode_fun_casadi->casadi_n_in = &GemCarModel_expl_ode_fun_n_in;
@@ -104,7 +107,7 @@ int GemCarModel_acados_sim_create(GemCarModel_sim_solver_capsule * capsule)
     capsule->sim_expl_ode_fun_casadi->casadi_sparsity_in = &GemCarModel_expl_ode_fun_sparsity_in;
     capsule->sim_expl_ode_fun_casadi->casadi_sparsity_out = &GemCarModel_expl_ode_fun_sparsity_out;
     capsule->sim_expl_ode_fun_casadi->casadi_work = &GemCarModel_expl_ode_fun_work;
-    external_function_param_casadi_create(capsule->sim_expl_ode_fun_casadi, np);
+    external_function_param_casadi_create(capsule->sim_expl_ode_fun_casadi, np, &ext_fun_opts);
 
     
 
@@ -154,7 +157,7 @@ int GemCarModel_acados_sim_create(GemCarModel_sim_solver_capsule * capsule)
 
     // model functions
     GemCarModel_sim_config->model_set(GemCarModel_sim_in->model,
-                 "expl_vde_forw", capsule->sim_forw_vde_casadi);
+                 "expl_vde_forw", capsule->sim_expl_vde_forw);
     GemCarModel_sim_config->model_set(GemCarModel_sim_in->model,
                  "expl_vde_adj", capsule->sim_vde_adj_casadi);
     GemCarModel_sim_config->model_set(GemCarModel_sim_in->model,
@@ -162,7 +165,7 @@ int GemCarModel_acados_sim_create(GemCarModel_sim_solver_capsule * capsule)
 
     // sim solver
     sim_solver *GemCarModel_sim_solver = sim_solver_create(GemCarModel_sim_config,
-                                               GemCarModel_sim_dims, GemCarModel_sim_opts);
+                                               GemCarModel_sim_dims, GemCarModel_sim_opts, GemCarModel_sim_in);
     capsule->acados_sim_solver = GemCarModel_sim_solver;
 
 
@@ -238,10 +241,10 @@ int GemCarModel_acados_sim_free(GemCarModel_sim_solver_capsule *capsule)
     sim_config_destroy(capsule->acados_sim_config);
 
     // free external function
-    external_function_param_casadi_free(capsule->sim_forw_vde_casadi);
+    external_function_param_casadi_free(capsule->sim_expl_vde_forw);
     external_function_param_casadi_free(capsule->sim_vde_adj_casadi);
     external_function_param_casadi_free(capsule->sim_expl_ode_fun_casadi);
-    free(capsule->sim_forw_vde_casadi);
+    free(capsule->sim_expl_vde_forw);
     free(capsule->sim_vde_adj_casadi);
     free(capsule->sim_expl_ode_fun_casadi);
 
@@ -259,7 +262,7 @@ int GemCarModel_acados_sim_update_params(GemCarModel_sim_solver_capsule *capsule
             " External function has %i parameters. Exiting.\n", np, casadi_np);
         exit(1);
     }
-    capsule->sim_forw_vde_casadi[0].set_param(capsule->sim_forw_vde_casadi, p);
+    capsule->sim_expl_vde_forw[0].set_param(capsule->sim_expl_vde_forw, p);
     capsule->sim_vde_adj_casadi[0].set_param(capsule->sim_vde_adj_casadi, p);
     capsule->sim_expl_ode_fun_casadi[0].set_param(capsule->sim_expl_ode_fun_casadi, p);
 

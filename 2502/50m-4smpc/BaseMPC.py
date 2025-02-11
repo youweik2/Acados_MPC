@@ -85,8 +85,8 @@ class GemCarOptimizer(object):
         self.target_velocity = target[3]
 
         # Obstacle set here
-        self.circle_obstacles_1 = {'x': 0, 'y': -4, 'r': 2}
-        self.circle_obstacles_2 = {'x': 3, 'y': 15, 'r': 2.0}
+        self.circle_obstacles_1 = {'x': 2, 'y': 5, 'r': 2}
+        self.circle_obstacles_2 = {'x': -2, 'y': 15, 'r': 2.0}
         self.circle_obstacles_3 = {'x': 1, 'y': 30, 'r': 4.0}
 
         self.plot_figures = True
@@ -118,8 +118,8 @@ class GemCarOptimizer(object):
         ocp.parameter_values = np.zeros(n_params)
 
         # Cost settings ***
-        Q = np.diag([20.0, 5.0, 15.0, 3.0])  # States
-        R = np.array([[10.0, 0.0],[0.0, 500.0]])            # Controls
+        Q = np.diag([10.0, 5.0, 15.0, 2.0])  # States
+        R = np.array([[100.0, 0.0],[0.0, 1200.0]])            # Controls
 
         ocp.cost.cost_type = 'NONLINEAR_LS'
         ocp.cost.cost_type_e = 'NONLINEAR_LS'
@@ -168,7 +168,7 @@ class GemCarOptimizer(object):
         if con_h_expr:
             ocp.model.con_h_expr = ca.vertcat(*con_h_expr)
             ocp.constraints.lh = np.zeros((len(con_h_expr),))
-            ocp.constraints.uh = 1000 * np.ones((len(con_h_expr),))
+            ocp.constraints.uh = 100 * np.ones((len(con_h_expr),))
 
             # slack variable configuration
             nsh = len(con_h_expr)
@@ -178,9 +178,9 @@ class GemCarOptimizer(object):
 
             ns = len(con_h_expr)
             ocp.cost.zl = 100 * np.ones((ns,))
-            ocp.cost.Zl = 1 * np.ones((ns,))
-            ocp.cost.zu = 100 * np.ones((ns,))
-            ocp.cost.Zu = 1 * np.ones((ns,))
+            ocp.cost.Zl = 10 * np.ones((ns,))
+            ocp.cost.zu = 0 * np.ones((ns,))
+            ocp.cost.Zu = 0 * np.ones((ns,))
 
 
         # initial state
@@ -403,13 +403,13 @@ class GemCarOptimizer(object):
 if __name__ == '__main__':
 
     obstacles = np.array([
-    [0.0, -4, 2]#,       #x, y, r 20 25 30
-    # [4.0, 5, 2],
-    # [1.0, 30, 4]
+    [-2.0, 15, 2],       #x, y, r 20 25 30
+    [2.0, 5, 2],
+    [1.0, 30, 4]
     ])
 
-    start_x, start_y, theta, vel, a0, fai0 = -0.25, -10, np.pi/6, 0.0007, 0, 0
-    terminal = np.array([0.0, 20.0, np.pi/2, 0.0])
+    start_x, start_y, theta, vel, a0, fai0 = -0.25, -10, np.pi/2, 0.0007, 0, 0
+    terminal = np.array([0.0, 40.0, np.pi/2, 0.0])
 
 
     car_model = GemCarModel()
